@@ -1,0 +1,10 @@
+{
+  "name": "NayaSantha",
+  "short_name": "NayaSantha",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#F5F9F3",
+  "theme_color": "#1E8E3E",
+  "description": "Your AI-Powered Weekly Market",
+  "orientation": "portrait-primary"
+}
