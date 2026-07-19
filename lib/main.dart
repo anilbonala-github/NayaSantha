@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
@@ -8,6 +9,7 @@ import 'state/app_state.dart';
 import 'state/assistant_state.dart';
 
 void main() {
+  usePathUrlStrategy();
   runApp(const NayaSanthaApp());
 }
 

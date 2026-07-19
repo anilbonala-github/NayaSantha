@@ -1,0 +1,27 @@
+# NayaSantha Flutter web — SPA routing + caching for Hostinger (Apache)
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # Serve real files/directories as-is
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # Everything else falls back to the Flutter app entry point
+  RewriteRule ^ index.html [L]
+</IfModule>
+
+# Do not cache the entry point or the service worker, so updates go live immediately
+<FilesMatch "(index\.html|flutter_service_worker\.js|version\.json)$">
+  <IfModule mod_headers.c>
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+  </IfModule>
+</FilesMatch>
+
+# Long-cache hashed/static assets
+<FilesMatch "\.(js|wasm|json|png|jpg|jpeg|gif|svg|woff2?|ttf|otf)$">
+  <IfModule mod_headers.c>
+    Header set Cache-Control "public, max-age=2592000"
+  </IfModule>
+</FilesMatch>
