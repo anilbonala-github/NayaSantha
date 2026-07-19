@@ -1,0 +1,51 @@
+name: Build & Deploy to Hostinger
+
+# Builds the Flutter web release in CI and uploads it to public_html over FTP.
+# Runs on every push to main, or manually from the Actions tab.
+#
+# Required repository secrets (Settings -> Secrets and variables -> Actions):
+#   FTP_SERVER    Hostinger FTP host (e.g. 82.25.120.116 or ftp.nayasantha.com)
+#   FTP_USERNAME  FTP account username (hPanel -> Files -> FTP Accounts)
+#   FTP_PASSWORD  FTP account password
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Fail early if FTP secrets are missing
+        run: |
+          if [ -z "${{ secrets.FTP_SERVER }}" ] || [ -z "${{ secrets.FTP_USERNAME }}" ] || [ -z "${{ secrets.FTP_PASSWORD }}" ]; then
+            echo "::error::Add FTP_SERVER, FTP_USERNAME and FTP_PASSWORD repository secrets to enable deployment."
+            exit 1
+          fi
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Generate web platform files
+        run: flutter create . --platforms=web --org com.nayasantha
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build web release
+        run: flutter build web --release
+
+      - name: Deploy to Hostinger public_html
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: ./build/web/
+          server-dir: ./public_html/
+          dangerous-clean-slate: false
