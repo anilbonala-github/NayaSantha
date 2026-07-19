@@ -1,0 +1,93 @@
+# Codemagic CI/CD for NayaSantha (Flutter) — builds & signs Android + iOS.
+#
+# One-time setup in the Codemagic UI (see CODEMAGIC_SETUP.md for the full walkthrough):
+#   • Connect this GitHub repo.
+#   • Android code signing: upload upload-keystore.jks, set alias/passwords,
+#     name the reference exactly  nayasantha_keystore
+#   • Google Play publishing: create a service-account JSON, add it as a
+#     secure env var GCLOUD_SERVICE_ACCOUNT_CREDENTIALS in group  google_play
+#   • iOS: add an App Store Connect API key integration named  nayasantha_asc
+#
+# Trigger: pushes to main. Adjust or add tag triggers as you like.
+
+definitions:
+  instance: &instance
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+
+workflows:
+  # ─────────────────────────── ANDROID ───────────────────────────
+  android-release:
+    name: Android Release (AAB)
+    <<: *instance
+    environment:
+      android_signing:
+        - nayasantha_keystore
+      groups:
+        - google_play            # provides GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+      flutter: stable
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+    scripts:
+      - name: Flutter pub get
+        script: flutter pub get
+      - name: Build signed AAB
+        script: |
+          flutter build appbundle --release \
+            --build-number=$PROJECT_BUILD_NUMBER
+    artifacts:
+      - build/**/outputs/bundle/**/*.aab
+      - build/**/outputs/**/mapping.txt
+    publishing:
+      google_play:
+        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+        track: internal          # internal → alpha → beta → production
+        submit_as_draft: true    # safe: creates a draft, you release manually
+      email:
+        recipients:
+          - anil.bonala.svp@gmail.com
+
+  # ───────────────────────────── iOS ─────────────────────────────
+  ios-release:
+    name: iOS Release (App Store / TestFlight)
+    <<: *instance
+    integrations:
+      app_store_connect: nayasantha_asc
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.nayasantha.nayaSantha
+      flutter: stable
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+    scripts:
+      - name: Flutter pub get
+        script: flutter pub get
+      - name: Install CocoaPods
+        script: find . -name "Podfile" -execdir pod install \;
+      - name: Set up provisioning profiles
+        script: xcode-project use-profiles
+      - name: Build signed IPA
+        script: |
+          flutter build ipa --release \
+            --build-number=$PROJECT_BUILD_NUMBER \
+            --export-options-plist=/Users/builder/export_options.plist
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true      # ships to TestFlight for testing
+        submit_to_app_store: false      # flip to true when ready to submit
+      email:
+        recipients:
+          - anil.bonala.svp@gmail.com
