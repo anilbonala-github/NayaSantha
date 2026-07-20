@@ -37,9 +37,22 @@ Monorepo: `backend/` (Java) beside the Flutter app (repo root).
   consuming the API. **Next**: wire the catalogue grid / product page / basket screens
   to these providers (replace the mock `AppState` catalogue + basket).
 
+## Phase 3 — Pantry + AI weekly plan + Gemini ✅ (backend + Flutter data layer)
+- **Backend** (verified vs Neon): pantry CRUD with **backend-computed** low-stock +
+  expiry status; **AI weekly plan** where Gemini *proposes* from sanitized household
+  context and the service is the deterministic authority — validates every SKU,
+  enforces allergies (peanut→groundnut synonym) + dietary + budget, recomputes
+  trusted prices, persists estimate + guaranteed max. Rule-based **fallback** runs
+  when `GEMINI_API_KEY` is unset (set it to enable real Gemini; validation stays server-side).
+- **Flutter**: `features/pantry` + `features/plan` Riverpod repositories/providers.
+- Verified: pantry LOW/EXPIRING status; plan estimate ₹1481 ≤ budget ₹1500; Groundnut
+  Oil excluded for a peanut allergy.
+
 ## Remaining phases (Vol2 §15)
-- **P1/P2 finish**: wire catalogue/basket/profile/address **screens** to their providers
-  (auth screens already migrated).
+- **UI wiring** (P1–P3): point the catalogue/basket/pantry/AI-plan/profile/address
+  **screens** at their providers (auth screens already migrated). Data layers exist.
+- **P4** Pricing consent + Saturday cutoff — needs the **Volume 2A** doc (not yet provided).
+- **P5** Checkout / payments / orders / notifications.
 - **P3 Pantry + Weekly Plan**: household preferences, pantry, AI plan (Gemini,
   validated server-side).
 - **P4 Pricing consent + Saturday cutoff** — needs the **Volume 2A** pricing doc
