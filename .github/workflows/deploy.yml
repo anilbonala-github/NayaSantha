@@ -47,8 +47,9 @@ jobs:
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           local-dir: ./build/web/
-          # The FTP account lands in the account HOME dir; the site is served
-          # from the public_html subdir. (Confirmed via a one-off `pwd`/`ls`
-          # diagnostic — the login dir contained a public_html/ folder.)
-          server-dir: ./public_html/
+          # Use a dedicated FTP account whose Directory is set to the site's real
+          # docroot: /home/<user>/domains/nayasantha.com/public_html
+          # That account lands directly in the served folder, so upload to "./".
+          # (The generic account's own public_html is a different, unused folder.)
+          server-dir: ./
           dangerous-clean-slate: false
