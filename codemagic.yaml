@@ -60,7 +60,7 @@ workflows:
     environment:
       ios_signing:
         distribution_type: app_store
-        bundle_identifier: com.nayasantha.nayaSantha
+        bundle_identifier: com.nayasantha.app
       flutter: stable
     triggering:
       events:
