@@ -61,12 +61,16 @@ class _SplashScreenState extends State<SplashScreen>
             scale: Tween<double>(begin: 0.92, end: 1).animate(
               CurvedAnimation(parent: _c, curve: Curves.easeOutBack),
             ),
-            child: const Column(
+            child: Column(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                BrandLockup(size: 34, showTagline: true),
-                SizedBox(height: Gap.section),
-                SizedBox(
+                Image.asset(
+                  'assets/images/logo_full.png',
+                  width: 300,
+                  fit: BoxFit.contain,
+                ),
+                const SizedBox(height: Gap.section),
+                const SizedBox(
                   width: 26,
                   height: 26,
                   child: CircularProgressIndicator(strokeWidth: 2.4),
@@ -94,38 +98,21 @@ class WelcomeScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              const SizedBox(height: Gap.xl),
-              const BrandLockup(size: 24),
               const Spacer(),
-              Text(
-                'AI-powered\nweekly market',
-                style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                      height: 1.15,
-                      color: AppColors.forest,
-                    ),
+              Center(
+                child: Image.asset(
+                  'assets/images/logo_full.png',
+                  width: 340,
+                  fit: BoxFit.contain,
+                ),
               ),
-              const SizedBox(height: Gap.md),
+              const SizedBox(height: Gap.lg),
               const Text(
                 'Tell us about your family once. We plan the week, size the '
                 'quantities and deliver fresh from farmers nearby.',
+                textAlign: TextAlign.center,
                 style: TextStyle(
                     fontSize: 15, color: AppColors.textSecondary, height: 1.5),
-              ),
-              const SizedBox(height: Gap.xl),
-              const _ValueProp(
-                icon: Icons.eco_outlined,
-                title: 'Fresh',
-                body: 'Harvested and dispatched within 24 hours',
-              ),
-              const _ValueProp(
-                icon: Icons.auto_awesome_outlined,
-                title: 'Smart',
-                body: 'Quantities sized to who actually eats what',
-              ),
-              const _ValueProp(
-                icon: Icons.agriculture_outlined,
-                title: 'Supporting farmers',
-                body: 'Direct procurement, fewer hands in between',
               ),
               const Spacer(),
               FilledButton(
@@ -149,53 +136,6 @@ class WelcomeScreen extends StatelessWidget {
   }
 }
 
-class _ValueProp extends StatelessWidget {
-  const _ValueProp({
-    required this.icon,
-    required this.title,
-    required this.body,
-  });
-
-  final IconData icon;
-  final String title;
-  final String body;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: Gap.lg),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: AppColors.surfaceMuted,
-              borderRadius: BorderRadius.circular(Radii.md),
-            ),
-            child: Icon(icon, size: 20, color: AppColors.primary),
-          ),
-          const SizedBox(width: Gap.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(title,
-                    style: const TextStyle(fontWeight: FontWeight.w700)),
-                Text(
-                  body,
-                  style: const TextStyle(
-                      fontSize: 13, color: AppColors.textSecondary),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 /// 03 — Login. Phone number is the primary identifier.
 class LoginScreen extends ConsumerStatefulWidget {
