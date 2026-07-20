@@ -26,6 +26,25 @@ jobs:
             exit 1
           fi
 
+      - name: Diagnose FTP layout (temporary — reveals the correct server-dir)
+        run: |
+          sudo apt-get -qq update && sudo apt-get -qq install -y lftp
+          lftp -u "${{ secrets.FTP_USERNAME }}","${{ secrets.FTP_PASSWORD }}" "${{ secrets.FTP_SERVER }}" <<'EOF'
+          set ssl:verify-certificate no
+          set ftp:ssl-allow true
+          echo ===== 1. LOGIN DIRECTORY (this is server-dir ./) =====
+          pwd
+          echo ===== 2. CONTENTS OF LOGIN DIR =====
+          cls -l
+          echo ===== 3. is main.dart.js right here in the login dir? =====
+          cls -l main.dart.js
+          echo ===== 4. public_html/ subdir? =====
+          cls -l public_html/
+          echo ===== 5. nested public_html/public_html/ ? =====
+          cls -l public_html/public_html/
+          bye
+          EOF
+
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
