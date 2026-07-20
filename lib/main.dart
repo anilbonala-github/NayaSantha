@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' show ProviderScope;
 import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -10,7 +11,9 @@ import 'state/assistant_state.dart';
 
 void main() {
   usePathUrlStrategy();
-  runApp(const NayaSanthaApp());
+  // ProviderScope enables Riverpod (backend-backed features, Vol2 §2).
+  // The legacy `provider` graph still runs for not-yet-migrated screens.
+  runApp(const ProviderScope(child: NayaSanthaApp()));
 }
 
 class NayaSanthaApp extends StatefulWidget {

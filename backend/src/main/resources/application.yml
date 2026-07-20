@@ -1,0 +1,53 @@
+spring:
+  application:
+    name: nayasantha-api
+  datasource:
+    # Provided via environment so no secrets live in source (Vol2 §2.2).
+    # Neon/Supabase example: jdbc:postgresql://HOST/DB?sslmode=require
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/nayasantha}
+    username: ${SPRING_DATASOURCE_USERNAME:nayasantha}
+    password: ${SPRING_DATASOURCE_PASSWORD:nayasantha}
+  jpa:
+    hibernate:
+      ddl-auto: validate        # schema is owned by Flyway, never by Hibernate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+  jackson:
+    default-property-inclusion: non_null
+
+server:
+  port: ${PORT:8080}
+  servlet:
+    context-path: /
+
+# JWT + app settings (override the secret in every non-dev environment)
+nayasantha:
+  jwt:
+    secret: ${JWT_SECRET:dev-only-insecure-secret-change-me-0123456789abcdef}
+    access-token-ttl-seconds: 3600            # 1 hour
+    refresh-token-ttl-seconds: 2592000        # 30 days
+    issuer: nayasantha
+  otp:
+    # Dev stub: no SMS provider wired yet. In dev any of these codes verifies.
+    # Vol1/Vol2: real provider replaces this; OTP result must come from backend.
+    dev-mode: ${OTP_DEV_MODE:true}
+    dev-code: ${OTP_DEV_CODE:000000}
+    length: 6
+    ttl-seconds: 300
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
+
+logging:
+  level:
+    org.flywaydb: info
