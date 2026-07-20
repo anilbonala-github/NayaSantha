@@ -26,25 +26,6 @@ jobs:
             exit 1
           fi
 
-      - name: Diagnose FTP layout (temporary — reveals the correct server-dir)
-        run: |
-          sudo apt-get -qq update && sudo apt-get -qq install -y lftp
-          lftp -u "${{ secrets.FTP_USERNAME }}","${{ secrets.FTP_PASSWORD }}" "${{ secrets.FTP_SERVER }}" <<'EOF'
-          set ssl:verify-certificate no
-          set ftp:ssl-allow true
-          echo ===== 1. LOGIN DIRECTORY (this is server-dir ./) =====
-          pwd
-          echo ===== 2. CONTENTS OF LOGIN DIR =====
-          cls -l
-          echo ===== 3. is main.dart.js right here in the login dir? =====
-          cls -l main.dart.js
-          echo ===== 4. public_html/ subdir? =====
-          cls -l public_html/
-          echo ===== 5. nested public_html/public_html/ ? =====
-          cls -l public_html/public_html/
-          bye
-          EOF
-
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -66,8 +47,8 @@ jobs:
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           local-dir: ./build/web/
-          # The Hostinger FTP account is rooted at public_html, so upload to the
-          # login root ("./"). Using "./public_html/" nested into
-          # public_html/public_html/ and the live site never updated.
-          server-dir: ./
+          # The FTP account lands in the account HOME dir; the site is served
+          # from the public_html subdir. (Confirmed via a one-off `pwd`/`ls`
+          # diagnostic — the login dir contained a public_html/ folder.)
+          server-dir: ./public_html/
           dangerous-clean-slate: false
