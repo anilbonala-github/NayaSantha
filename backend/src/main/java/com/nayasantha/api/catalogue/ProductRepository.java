@@ -24,4 +24,6 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
             UUID categoryId, String name, Pageable pageable);
 
     List<Product> findTop8ByActiveTrueAndNameContainingIgnoreCase(String name);
+
+    List<Product> findByActiveTrueOrderByNameAsc();
 }

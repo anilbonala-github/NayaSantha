@@ -41,6 +41,11 @@ nayasantha:
     dev-code: ${OTP_DEV_CODE:000000}
     length: 6
     ttl-seconds: 300
+  gemini:
+    # Empty key => deterministic fallback planner. Set GEMINI_API_KEY to enable.
+    api-key: ${GEMINI_API_KEY:}
+    model: ${GEMINI_MODEL:gemini-2.0-flash}
+    prompt-version: plan-v1
 
 springdoc:
   swagger-ui:

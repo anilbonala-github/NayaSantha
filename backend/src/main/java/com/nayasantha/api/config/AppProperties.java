@@ -8,11 +8,30 @@ public class AppProperties {
 
     private Jwt jwt = new Jwt();
     private Otp otp = new Otp();
+    private Gemini gemini = new Gemini();
 
     public Jwt getJwt() { return jwt; }
     public void setJwt(Jwt jwt) { this.jwt = jwt; }
     public Otp getOtp() { return otp; }
     public void setOtp(Otp otp) { this.otp = otp; }
+    public Gemini getGemini() { return gemini; }
+    public void setGemini(Gemini gemini) { this.gemini = gemini; }
+
+    /** Google Gemini for weekly-plan recommendations (Vol2 §10). Empty apiKey =>
+     *  deterministic fallback planner runs instead. */
+    public static class Gemini {
+        private String apiKey = "";
+        private String model = "gemini-2.0-flash";
+        private String promptVersion = "plan-v1";
+
+        public boolean isEnabled() { return apiKey != null && !apiKey.isBlank(); }
+        public String getApiKey() { return apiKey; }
+        public void setApiKey(String apiKey) { this.apiKey = apiKey; }
+        public String getModel() { return model; }
+        public void setModel(String model) { this.model = model; }
+        public String getPromptVersion() { return promptVersion; }
+        public void setPromptVersion(String promptVersion) { this.promptVersion = promptVersion; }
+    }
 
     public static class Jwt {
         private String secret;
