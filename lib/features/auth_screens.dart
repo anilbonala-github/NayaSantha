@@ -65,8 +65,8 @@ class _SplashScreenState extends State<SplashScreen>
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
                 Image.asset(
-                  'assets/images/logo_full.png',
-                  width: 300,
+                  'assets/images/logo_transparent.png',
+                  width: 340,
                   fit: BoxFit.contain,
                 ),
                 const SizedBox(height: Gap.section),
@@ -101,8 +101,8 @@ class WelcomeScreen extends StatelessWidget {
               const Spacer(),
               Center(
                 child: Image.asset(
-                  'assets/images/logo_full.png',
-                  width: 340,
+                  'assets/images/logo_transparent.png',
+                  width: 400,
                   fit: BoxFit.contain,
                 ),
               ),
