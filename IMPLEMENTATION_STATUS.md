@@ -28,10 +28,18 @@ Monorepo: `backend/` (Java) beside the Flutter app (repo root).
 3. Run the app against it: `flutter run --dart-define=API_BASE_URL=http://localhost:8080`
    (Android emulator: use `http://10.0.2.2:8080`).
 
+## Phase 2 — Catalogue + basket ✅ (backend + Flutter data layer)
+- **Backend** (verified vs Neon): categories, products (paginated, category+query
+  filters), product detail, search suggestions — each product carries its current
+  price + effective version; persistent basket with server-recalculated **estimate +
+  guaranteed maximum** and optimistic locking. Seeded 18-product Hyderabad catalogue.
+- **Flutter**: `features/catalogue` + `features/basket` Riverpod repositories/providers
+  consuming the API. **Next**: wire the catalogue grid / product page / basket screens
+  to these providers (replace the mock `AppState` catalogue + basket).
+
 ## Remaining phases (Vol2 §15)
-- **P1 finish**: wire the Flutter **login/OTP screens** to `authControllerProvider`
-  (replace mock `AppState` auth), plus profile/address screens → their repositories.
-- **P2 Catalogue**: categories, products, prices, search, basket persistence.
+- **P1/P2 finish**: wire catalogue/basket/profile/address **screens** to their providers
+  (auth screens already migrated).
 - **P3 Pantry + Weekly Plan**: household preferences, pantry, AI plan (Gemini,
   validated server-side).
 - **P4 Pricing consent + Saturday cutoff** — needs the **Volume 2A** pricing doc
