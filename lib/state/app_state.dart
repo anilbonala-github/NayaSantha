@@ -65,6 +65,22 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Bridges a real backend sign-in (via [AuthController]) into the still-mock
+  /// session so existing screens keep working while migration is in progress.
+  /// Remove once every screen reads from its backend repository.
+  void applyBackendSignIn({
+    required String phone,
+    String? name,
+    required bool onboardingComplete,
+  }) {
+    _signedIn = true;
+    _guest = false;
+    _phone = phone;
+    if (name != null && name.trim().isNotEmpty) _name = name.trim();
+    _onboardingComplete = onboardingComplete;
+    notifyListeners();
+  }
+
   // --- Family & addresses --------------------------------------------------
   final List<FamilyMember> _family = List<FamilyMember>.from(MockData.family);
   final List<Address> _addresses = List<Address>.from(MockData.addresses);

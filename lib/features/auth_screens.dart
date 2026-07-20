@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
@@ -10,6 +11,7 @@ import '../core/theme/app_colors.dart';
 import '../core/theme/app_theme.dart';
 import '../core/widgets/common.dart';
 import '../state/app_state.dart';
+import 'auth/presentation/auth_controller.dart';
 
 /// 01 — Splash. Brand moment plus session restore.
 class SplashScreen extends StatefulWidget {
@@ -196,17 +198,16 @@ class _ValueProp extends StatelessWidget {
 }
 
 /// 03 — Login. Phone number is the primary identifier.
-class LoginScreen extends StatefulWidget {
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen> {
   final TextEditingController _phone = TextEditingController();
   String? _error;
-  bool _busy = false;
 
   @override
   void dispose() {
@@ -214,24 +215,28 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  Future<void> _submit() async {
+  void _submit() {
     final String value = _phone.text.trim();
     if (!RegExp(r'^[6-9]\d{9}$').hasMatch(value)) {
       setState(() => _error = 'Enter a 10-digit Indian mobile number');
       return;
     }
-    setState(() {
-      _error = null;
-      _busy = true;
-    });
-    await context.read<AppState>().requestOtp(value);
-    if (!mounted) return;
-    setState(() => _busy = false);
-    context.go(Routes.otp);
+    setState(() => _error = null);
+    // Real backend call: POST /api/v1/auth/otp/request (Vol2 §6.1).
+    ref.read(authControllerProvider.notifier).requestOtp(value);
   }
 
   @override
   Widget build(BuildContext context) {
+    // React to the auth state machine (Vol2 §9): navigate on OTP sent, surface errors.
+    ref.listen<AuthState>(authControllerProvider, (previous, next) {
+      if (next is AuthOtpSent) {
+        context.go(Routes.otp);
+      } else if (next is AuthFailed) {
+        setState(() => _error = next.failure.userMessage);
+      }
+    });
+    final bool _busy = ref.watch(authControllerProvider) is AuthLoading;
     return Scaffold(
       appBar: AppBar(leading: const _BackButton()),
       body: PageBody(
@@ -289,24 +294,28 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
-/// 04 — OTP verification with a resend timer.
-class OtpScreen extends StatefulWidget {
+/// 04 — OTP verification, backed by POST /api/v1/auth/otp/verify (Vol2 §6.1).
+class OtpScreen extends ConsumerStatefulWidget {
   const OtpScreen({super.key});
 
   @override
-  State<OtpScreen> createState() => _OtpScreenState();
+  ConsumerState<OtpScreen> createState() => _OtpScreenState();
 }
 
-class _OtpScreenState extends State<OtpScreen> {
+class _OtpScreenState extends ConsumerState<OtpScreen> {
   final TextEditingController _code = TextEditingController();
   Timer? _timer;
   int _seconds = 30;
   String? _error;
-  bool _busy = false;
+  late String _mobile;
+  String? _devHint;
 
   @override
   void initState() {
     super.initState();
+    final AuthState state = ref.read(authControllerProvider);
+    _mobile = state is AuthOtpSent ? state.mobile : '';
+    _devHint = state is AuthOtpSent ? state.devHint : null;
     _startTimer();
   }
 
@@ -327,24 +336,39 @@ class _OtpScreenState extends State<OtpScreen> {
     super.dispose();
   }
 
-  Future<void> _verify() async {
-    setState(() {
-      _busy = true;
-      _error = null;
-    });
-    final bool ok = await context.read<AppState>().verifyOtp(_code.text.trim());
-    if (!mounted) return;
-    setState(() => _busy = false);
-    if (ok) {
-      context.go(Routes.register);
-    } else {
-      setState(() => _error = 'That code is not right. Check and try again.');
-    }
+  void _verify() {
+    if (_code.text.trim().length != 6) return;
+    setState(() => _error = null);
+    ref.read(authControllerProvider.notifier).verifyOtp(_mobile, _code.text.trim());
+  }
+
+  void _resend() {
+    _startTimer();
+    ref.read(authControllerProvider.notifier).requestOtp(_mobile);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Code sent again')),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final String phone = context.watch<AppState>().phone;
+    // Route on the auth outcome (Vol2 §6.1: new users → onboarding by status).
+    ref.listen<AuthState>(authControllerProvider, (previous, next) {
+      if (next is AuthAuthenticated) {
+        context.read<AppState>().applyBackendSignIn(
+              phone: _mobile,
+              name: next.user.name,
+              onboardingComplete: !next.user.needsOnboarding,
+            );
+        context.go(next.user.needsOnboarding ? Routes.register : Routes.home);
+      } else if (next is AuthFailed) {
+        setState(() => _error = next.failure.userMessage);
+      } else if (next is AuthOtpSent) {
+        setState(() => _devHint = next.devHint);
+      }
+    });
+    final bool _busy = ref.watch(authControllerProvider) is AuthLoading;
+    final String phone = _mobile;
     return Scaffold(
       appBar: AppBar(leading: const _BackButton()),
       body: PageBody(
@@ -392,12 +416,7 @@ class _OtpScreenState extends State<OtpScreen> {
                       style: const TextStyle(color: AppColors.textSecondary),
                     )
                   : TextButton(
-                      onPressed: () {
-                        _startTimer();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Code sent again')),
-                        );
-                      },
+                      onPressed: _resend,
                       child: const Text('Resend code'),
                     ),
             ),
@@ -414,10 +433,11 @@ class _OtpScreenState extends State<OtpScreen> {
                   : const Text('Verify'),
             ),
             const SizedBox(height: Gap.lg),
-            const Text(
-              'Mock mode: any 6 digits will verify.',
-              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-            ),
+            if (_devHint != null)
+              Text(
+                _devHint!,
+                style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              ),
           ],
         ),
       ),
