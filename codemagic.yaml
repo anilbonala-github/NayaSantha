@@ -58,9 +58,8 @@ workflows:
     integrations:
       app_store_connect: nayasantha_asc
     environment:
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.nayasantha.app
+      vars:
+        BUNDLE_ID: "com.nayasantha.app"
       flutter: stable
     triggering:
       events:
@@ -69,17 +68,23 @@ workflows:
         - pattern: main
           include: true
     scripts:
+      - name: Set up signing (creates distribution cert + profile if missing)
+        script: |
+          keychain initialize
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --create
+          keychain add-certificates
+          xcode-project use-profiles
       - name: Flutter pub get
         script: flutter pub get
       - name: Install CocoaPods
         script: find . -name "Podfile" -execdir pod install \;
-      - name: Set up provisioning profiles
-        script: xcode-project use-profiles
       - name: Build signed IPA
         script: |
           flutter build ipa --release \
             --build-number=$PROJECT_BUILD_NUMBER \
-            --export-options-plist=/Users/builder/export_options.plist
+            --export-options-plist=$HOME/export_options.plist
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
