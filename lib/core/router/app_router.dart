@@ -13,6 +13,11 @@ import '../../features/weekly_plan_screen.dart';
 import '../widgets/app_shell.dart';
 import 'routes.dart';
 
+/// Instant page swap for shell/tab routes — no slide animation, so screens
+/// never stack over one another during a transition.
+NoTransitionPage<void> _shellPage(Widget child) =>
+    NoTransitionPage<void>(child: child);
+
 /// Routes are grouped into three sets:
 ///  - standalone (splash, auth, onboarding): no navigation chrome
 ///  - shell routes: wrapped in [AppShell] (bottom nav on mobile, sidebar on web)
@@ -53,37 +58,58 @@ GoRouter buildRouter() {
       ),
 
       // --- Shell routes ------------------------------------------------------
+      // Tab screens swap instantly (NoTransitionPage): a slide transition would
+      // stack the outgoing screen under the incoming one, and because the
+      // screens paint no full-screen background, the old screen shows through.
       ShellRoute(
         builder: (BuildContext context, GoRouterState state, Widget child) =>
             AppShell(child: child),
         routes: <RouteBase>[
-          GoRoute(path: Routes.home, builder: (_, __) => const HomeScreen()),
+          GoRoute(
+            path: Routes.home,
+            pageBuilder: (_, __) => _shellPage(const HomeScreen()),
+          ),
           GoRoute(
             path: Routes.weeklyPlan,
-            builder: (_, __) => const WeeklyPlanScreen(),
+            pageBuilder: (_, __) => _shellPage(const WeeklyPlanScreen()),
           ),
           GoRoute(
             path: Routes.categories,
-            builder: (BuildContext c, GoRouterState s) => CategoriesScreen(
-              initialCategoryId: s.uri.queryParameters['id'],
+            pageBuilder: (BuildContext c, GoRouterState s) => _shellPage(
+              CategoriesScreen(initialCategoryId: s.uri.queryParameters['id']),
             ),
           ),
-          GoRoute(path: Routes.pantry, builder: (_, __) => const PantryScreen()),
+          GoRoute(
+            path: Routes.pantry,
+            pageBuilder: (_, __) => _shellPage(const PantryScreen()),
+          ),
           GoRoute(
             path: Routes.recipes,
-            builder: (_, __) => const RecipesScreen(),
+            pageBuilder: (_, __) => _shellPage(const RecipesScreen()),
           ),
-          GoRoute(path: Routes.budget, builder: (_, __) => const BudgetScreen()),
-          GoRoute(path: Routes.offers, builder: (_, __) => const OffersScreen()),
+          GoRoute(
+            path: Routes.budget,
+            pageBuilder: (_, __) => _shellPage(const BudgetScreen()),
+          ),
+          GoRoute(
+            path: Routes.offers,
+            pageBuilder: (_, __) => _shellPage(const OffersScreen()),
+          ),
           GoRoute(
             path: Routes.subscription,
-            builder: (_, __) => const SubscriptionScreen(),
+            pageBuilder: (_, __) => _shellPage(const SubscriptionScreen()),
           ),
-          GoRoute(path: Routes.wallet, builder: (_, __) => const WalletScreen()),
-          GoRoute(path: Routes.orders, builder: (_, __) => const OrdersScreen()),
+          GoRoute(
+            path: Routes.wallet,
+            pageBuilder: (_, __) => _shellPage(const WalletScreen()),
+          ),
+          GoRoute(
+            path: Routes.orders,
+            pageBuilder: (_, __) => _shellPage(const OrdersScreen()),
+          ),
           GoRoute(
             path: Routes.profile,
-            builder: (_, __) => const ProfileScreen(),
+            pageBuilder: (_, __) => _shellPage(const ProfileScreen()),
           ),
         ],
       ),
