@@ -47,5 +47,8 @@ jobs:
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           local-dir: ./build/web/
-          server-dir: ./public_html/
+          # The Hostinger FTP account is rooted at public_html, so upload to the
+          # login root ("./"). Using "./public_html/" nested into
+          # public_html/public_html/ and the live site never updated.
+          server-dir: ./
           dangerous-clean-slate: false

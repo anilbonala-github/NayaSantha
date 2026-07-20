@@ -12,15 +12,18 @@
   RewriteRule ^ index.html [L]
 </IfModule>
 
-# Do not cache the entry point or the service worker, so updates go live immediately
-<FilesMatch "(index\.html|flutter_service_worker\.js|version\.json)$">
+# Flutter's entry files (main.dart.js, flutter*.js, index.html, *.json) keep the
+# SAME filename across builds, so they must never be cached — otherwise a new
+# deploy is masked by a stale copy in the browser/CDN. This was the cause of the
+# "new build not showing up" problem.
+<FilesMatch "\.(html|js|json)$">
   <IfModule mod_headers.c>
     Header set Cache-Control "no-cache, no-store, must-revalidate"
   </IfModule>
 </FilesMatch>
 
-# Long-cache hashed/static assets
-<FilesMatch "\.(js|wasm|json|png|jpg|jpeg|gif|svg|woff2?|ttf|otf)$">
+# Content assets (images, fonts, wasm) rarely change and are safe to cache long.
+<FilesMatch "\.(wasm|png|jpg|jpeg|gif|svg|webp|woff2?|ttf|otf)$">
   <IfModule mod_headers.c>
     Header set Cache-Control "public, max-age=2592000"
   </IfModule>
