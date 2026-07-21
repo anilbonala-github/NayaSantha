@@ -44,7 +44,8 @@ nayasantha:
   gemini:
     # Empty key => deterministic fallback planner. Set GEMINI_API_KEY to enable.
     api-key: ${GEMINI_API_KEY:}
-    model: ${GEMINI_MODEL:gemini-2.0-flash}
+    # Use the -latest alias; pinned model ids (gemini-2.x-flash) are 404 for new accounts.
+    model: ${GEMINI_MODEL:gemini-flash-latest}
     prompt-version: plan-v1
 
 springdoc:

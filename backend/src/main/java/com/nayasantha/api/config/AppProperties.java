@@ -21,7 +21,7 @@ public class AppProperties {
      *  deterministic fallback planner runs instead. */
     public static class Gemini {
         private String apiKey = "";
-        private String model = "gemini-2.0-flash";
+        private String model = "gemini-flash-latest";
         private String promptVersion = "plan-v1";
 
         public boolean isEnabled() { return apiKey != null && !apiKey.isBlank(); }
