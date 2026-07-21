@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../features/basket/presentation/basket_providers.dart';
 import '../../state/app_state.dart';
 import '../router/routes.dart';
 import '../theme/app_colors.dart';
@@ -51,7 +53,7 @@ class AppShell extends StatelessWidget {
 // Mobile / tablet
 // ---------------------------------------------------------------------------
 
-class _CompactShell extends StatelessWidget {
+class _CompactShell extends ConsumerWidget {
   const _CompactShell({required this.child});
 
   final Widget child;
@@ -68,8 +70,11 @@ class _CompactShell extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
-    final AppState app = context.watch<AppState>();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final int basketCount = ref.watch(basketCountProvider);
+    final double basketEstimate = ref
+        .watch(basketProvider)
+        .maybeWhen(data: (b) => b.estimatedTotal, orElse: () => 0);
     return Scaffold(
       body: SafeArea(bottom: false, child: child),
       bottomNavigationBar: DecoratedBox(
@@ -90,14 +95,14 @@ class _CompactShell extends StatelessWidget {
               .toList(),
         ),
       ),
-      floatingActionButton: app.basketCount == 0
+      floatingActionButton: basketCount == 0
           ? null
           : FloatingActionButton.extended(
               backgroundColor: AppColors.forest,
               foregroundColor: Colors.white,
               onPressed: () => context.go(Routes.basket),
               icon: const Icon(Icons.shopping_basket_outlined),
-              label: Text('${app.basketCount} · ${money(app.basketSubtotal)}'),
+              label: Text('$basketCount · ₹${basketEstimate.toStringAsFixed(0)}'),
             ),
     );
   }
@@ -107,14 +112,15 @@ class _CompactShell extends StatelessWidget {
 // Desktop web
 // ---------------------------------------------------------------------------
 
-class _WideShell extends StatelessWidget {
+class _WideShell extends ConsumerWidget {
   const _WideShell({required this.child});
 
   final Widget child;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final AppState app = context.watch<AppState>();
+    final int basketCount = ref.watch(basketCountProvider);
     final String location = GoRouterState.of(context).uri.path;
 
     return Scaffold(
@@ -201,7 +207,7 @@ class _WideShell extends StatelessWidget {
           Expanded(
             child: Column(
               children: <Widget>[
-                _TopBar(app: app),
+                _TopBar(app: app, basketCount: basketCount),
                 Expanded(child: child),
               ],
             ),
@@ -213,9 +219,10 @@ class _WideShell extends StatelessWidget {
 }
 
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.app});
+  const _TopBar({required this.app, required this.basketCount});
 
   final AppState app;
+  final int basketCount;
 
   @override
   Widget build(BuildContext context) {
@@ -273,7 +280,7 @@ class _TopBar extends StatelessWidget {
           const SizedBox(width: Gap.sm),
           _IconBadge(
             icon: Icons.shopping_basket_outlined,
-            count: app.basketCount,
+            count: basketCount,
             onTap: () => context.go(Routes.basket),
           ),
           const SizedBox(width: Gap.lg),
