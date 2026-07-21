@@ -38,7 +38,8 @@ jobs:
         run: flutter pub get
 
       - name: Build web release
-        run: flutter build web --release
+        # Point the live site at the hosted backend so login/catalogue/plan are dynamic.
+        run: flutter build web --release --dart-define=API_BASE_URL=https://nayasantha-api.onrender.com
 
       - name: Deploy to Hostinger public_html
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5

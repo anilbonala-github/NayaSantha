@@ -12,8 +12,10 @@ class ApiClient {
         _dio = dio ?? Dio() {
     _dio.options
       ..baseUrl = '${ApiConfig.baseUrl}${ApiConfig.apiPrefix}'
-      ..connectTimeout = const Duration(seconds: 15)
-      ..receiveTimeout = const Duration(seconds: 20)
+      ..connectTimeout = const Duration(seconds: 30)
+      // Generous receive timeout so a free-tier host cold start (~50s) doesn't
+      // fail the first request; tighten once on an always-on plan.
+      ..receiveTimeout = const Duration(seconds: 90)
       ..contentType = 'application/json';
     _dio.interceptors.add(InterceptorsWrapper(
       onRequest: _onRequest,
