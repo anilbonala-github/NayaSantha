@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/api/api_failure.dart';
+import '../../../core/router/routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/common.dart';
@@ -178,23 +180,8 @@ class _PlanView extends ConsumerWidget {
       final order = await ref.read(orderRepositoryProvider)
           .approve(plan.id, pricePreference: preference, deviceInfo: 'flutter');
       if (!context.mounted) return;
-      showDialog<void>(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: const Text('Order confirmed'),
-          content: Text(
-            'Your weekly order is locked with substitution preference '
-            '${preference.replaceAll('_', ' ').toLowerCase()}.\n\n'
-            'Estimated ₹${order.estimatedTotal.toStringAsFixed(0)} · '
-            'guaranteed maximum ₹${order.maximumPayable.toStringAsFixed(0)}.\n\n'
-            'On Sunday we buy at the market and charge only the actual final amount.',
-          ),
-          actions: <Widget>[
-            FilledButton(
-                onPressed: () => Navigator.pop(context), child: const Text('Great')),
-          ],
-        ),
-      );
+      // Straight to the order / final-bill screen (Vol2A journey continues there).
+      context.go(Routes.orderBillPath(order.id));
     } on ApiFailure catch (f) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(f.userMessage)));

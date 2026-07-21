@@ -23,6 +23,7 @@ class Routes {
   static const String checkout = '/checkout';
   static const String payment = '/payment';
   static const String orderSuccess = '/order-success'; // /order-success/:id
+  static const String orderBill = '/order'; // /order/:id — final bill + settlement
   static const String orders = '/orders';
   static const String tracking = '/track'; // /track/:id
   static const String assistant = '/assistant';
@@ -38,6 +39,7 @@ class Routes {
   static const String offers = '/offers';
 
   static String productPath(String id) => '$product/$id';
+  static String orderBillPath(String id) => '$orderBill/$id';
   static String orderSuccessPath(String id) => '$orderSuccess/$id';
   static String trackingPath(String id) => '$tracking/$id';
 }

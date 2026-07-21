@@ -10,6 +10,7 @@ import '../../features/offers_screen.dart';
 import '../../features/onboarding_screens.dart';
 import '../../features/basket/presentation/basket_screen.dart';
 import '../../features/catalogue/presentation/catalogue_screen.dart';
+import '../../features/order/presentation/order_bill_screen.dart';
 import '../../features/plan/presentation/weekly_plan_screen.dart';
 import '../../features/shopping_screens.dart' hide BasketScreen;
 import '../widgets/app_shell.dart';
@@ -118,6 +119,11 @@ GoRouter buildRouter() {
 
       // --- Full-screen flows -------------------------------------------------
       GoRoute(path: Routes.basket, builder: (_, __) => const BasketScreen()),
+      GoRoute(
+        path: '${Routes.orderBill}/:id',
+        builder: (BuildContext c, GoRouterState s) =>
+            OrderBillScreen(orderId: s.pathParameters['id'] ?? ''),
+      ),
       GoRoute(
         path: '${Routes.product}/:id',
         builder: (BuildContext c, GoRouterState s) =>
