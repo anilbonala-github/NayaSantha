@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../features/account_screens.dart';
+import '../../features/account_screens.dart' hide ProfileScreen;
 import '../../features/auth_screens.dart';
 import '../../features/checkout_screens.dart' hide OrdersScreen;
 import '../../features/home_screen.dart';
@@ -14,6 +14,7 @@ import '../../features/order/presentation/order_bill_screen.dart';
 import '../../features/order/presentation/orders_screen.dart';
 import '../../features/pantry/presentation/pantry_screen.dart';
 import '../../features/plan/presentation/weekly_plan_screen.dart';
+import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/shopping_screens.dart' hide BasketScreen;
 import '../widgets/app_shell.dart';
 import 'routes.dart';
