@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.temporal.TemporalAdjusters;
@@ -114,8 +115,15 @@ public class WeeklyPlanService {
             maximum = maximum.add(pr.price().getMaxPrice().multiply(BigDecimal.valueOf(qty)));
         }
         plan.setEstimatedTotal(estimate);
-        plan.setMaximumPayable(maximum);
+        plan.setMaximumPayable(maxPayable(estimate));  // Vol2A §9: RoundUpTo5(estimate × 1.025)
         return plans.save(plan);
+    }
+
+    /** Guaranteed maximum payable = round up to nearest 5 of estimate × 1.025 (Vol2A §9). */
+    public static BigDecimal maxPayable(BigDecimal estimate) {
+        BigDecimal five = BigDecimal.valueOf(5);
+        return estimate.multiply(BigDecimal.valueOf(1.025))
+                .divide(five, 0, RoundingMode.CEILING).multiply(five);
     }
 
     @Transactional(readOnly = true)
@@ -158,7 +166,7 @@ public class WeeklyPlanService {
             max = max.add(i.getUnitMaxPrice().multiply(BigDecimal.valueOf(i.getQuantity())));
         }
         plan.setEstimatedTotal(est);
-        plan.setMaximumPayable(max);
+        plan.setMaximumPayable(maxPayable(est));
     }
 
     private WeeklyPlanDtos.PlanDto toDto(WeeklyPlan plan) {
