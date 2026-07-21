@@ -41,13 +41,25 @@ public class SecurityConfig {
                 .requestMatchers(PUBLIC).permitAll()
                 .requestMatchers("/api/v1/ops/**").hasRole("ADMIN")
                 .anyRequest().authenticated())
-            .exceptionHandling(e -> e.authenticationEntryPoint((req, res, ex) -> {
-                res.setStatus(ErrorCode.UNAUTHORIZED.status().value());
-                res.setContentType(MediaType.APPLICATION_JSON_VALUE);
-                mapper.writeValue(res.getWriter(), new ApiError(
-                        ErrorCode.UNAUTHORIZED.name(), ErrorCode.UNAUTHORIZED.userMessage(),
-                        ex.getMessage(), MDC.get("traceId")));
-            }))
+            .exceptionHandling(e -> e
+                .authenticationEntryPoint((req, res, ex) -> {
+                    res.setStatus(ErrorCode.UNAUTHORIZED.status().value());
+                    res.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                    mapper.writeValue(res.getWriter(), new ApiError(
+                            ErrorCode.UNAUTHORIZED.name(), ErrorCode.UNAUTHORIZED.userMessage(),
+                            ex.getMessage(), MDC.get("traceId")));
+                })
+                // Write the 403 body directly. The default handler calls
+                // response.sendError(), which triggers a container ERROR dispatch
+                // to /error that re-enters this filter chain anonymously and gets
+                // flipped to 401 by the entry point above.
+                .accessDeniedHandler((req, res, ex) -> {
+                    res.setStatus(ErrorCode.FORBIDDEN.status().value());
+                    res.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                    mapper.writeValue(res.getWriter(), new ApiError(
+                            ErrorCode.FORBIDDEN.name(), ErrorCode.FORBIDDEN.userMessage(),
+                            ex.getMessage(), MDC.get("traceId")));
+                }))
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
