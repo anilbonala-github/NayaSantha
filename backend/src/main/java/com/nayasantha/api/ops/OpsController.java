@@ -30,6 +30,12 @@ public class OpsController {
         return ApiResponse.of(ops.summary());
     }
 
+    /** Order-cutoff console: status counts + exceptions queue. */
+    @GetMapping("/cutoff")
+    public ApiResponse<CutoffDto> cutoff() {
+        return ApiResponse.of(ops.cutoff());
+    }
+
     /** Consolidated buy list across every locked order (what the buyer takes to market). */
     @GetMapping("/purchase-list")
     public ApiResponse<List<PurchaseLineDto>> purchaseList() {

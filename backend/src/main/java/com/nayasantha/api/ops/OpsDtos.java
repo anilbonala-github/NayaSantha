@@ -32,9 +32,23 @@ public final class OpsDtos {
             String name,
             String unit,
             int totalQuantity,
+            int bufferPercent,       // procurement buffer (Vol2A FR-007)
+            int buyQuantity,         // required qty + buffer, rounded up
             BigDecimal forecastRate,
+            BigDecimal maxRate,      // guaranteed max purchase rate per unit (forecast x1.025)
             BigDecimal capturedRate,
             BigDecimal estimatedAmount) {}
+
+    /** Order-cutoff console snapshot (Vol2A §7.1). */
+    public record CutoffDto(
+            LocalDate weekStart,
+            long approved,           // locked orders
+            long pending,            // confirmed, not yet locked
+            long needsAttention,     // awaiting customer approval (over cap)
+            long cancelled,
+            List<CutoffExceptionDto> exceptions) {}
+
+    public record CutoffExceptionDto(String orderRef, String reason, String type) {}
 
     public record PriceEntry(
             @NotNull UUID productId,

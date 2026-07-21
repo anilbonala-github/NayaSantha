@@ -14,3 +14,7 @@ final opsSummaryProvider = FutureProvider.autoDispose<OpsSummary>(
 /// Consolidated buy list across all locked orders.
 final purchaseListProvider = FutureProvider.autoDispose<List<PurchaseLine>>(
     (ref) => ref.watch(opsRepositoryProvider).purchaseList());
+
+/// Order-cutoff console: status counts + exceptions queue.
+final cutoffProvider = FutureProvider.autoDispose<Cutoff>(
+    (ref) => ref.watch(opsRepositoryProvider).cutoff());

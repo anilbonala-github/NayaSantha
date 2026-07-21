@@ -25,6 +25,9 @@ import java.util.*;
 @Service
 public class OpsService {
 
+    /** Default procurement buffer % added to confirmed demand (Vol2A FR-007). */
+    private static final int BUFFER_PERCENT = 5;
+
     private final OrderService orderService;
     private final MarketPriceRepository prices;
 
@@ -80,11 +83,35 @@ public class OpsService {
         byProduct.forEach((productId, a) -> {
             BigDecimal forecast = a.quantity == 0 ? BigDecimal.ZERO
                     : a.estimated.divide(BigDecimal.valueOf(a.quantity), 2, RoundingMode.HALF_UP);
+            int buyQty = (int) Math.ceil(a.quantity * (1 + BUFFER_PERCENT / 100.0));
+            BigDecimal maxRate = forecast.multiply(BigDecimal.valueOf(1.025)).setScale(2, RoundingMode.CEILING);
             out.add(new PurchaseLineDto(productId, a.name, a.unit, a.quantity,
-                    forecast, capturedRate.get(productId), a.estimated));
+                    BUFFER_PERCENT, buyQty, forecast, maxRate,
+                    capturedRate.get(productId), a.estimated));
         });
         out.sort(Comparator.comparing(PurchaseLineDto::name, String.CASE_INSENSITIVE_ORDER));
         return out;
+    }
+
+    /** Order-cutoff console: status counts + the exceptions queue (Vol2A §7.1). */
+    @Transactional(readOnly = true)
+    public CutoffDto cutoff() {
+        List<Order> awaiting = orderService.ordersByStatus(Order.Status.AWAITING_APPROVAL);
+        List<CutoffExceptionDto> exceptions = new ArrayList<>();
+        for (Order o : awaiting) {
+            String ref = "NS-" + o.getId().toString().substring(0, 8);
+            String detail = o.getFinalTotal() != null
+                    ? String.format("Final ₹%s exceeds cap ₹%s", o.getFinalTotal(), o.getMaximumPayable())
+                    : "Basket exceeds customer maximum";
+            exceptions.add(new CutoffExceptionDto(ref, detail, "OVER_CAP"));
+        }
+        return new CutoffDto(
+                currentWeekStart(),
+                orderService.ordersByStatus(Order.Status.LOCKED).size(),
+                orderService.ordersByStatus(Order.Status.CONFIRMED).size(),
+                awaiting.size(),
+                orderService.ordersByStatus(Order.Status.CANCELLED).size(),
+                exceptions);
     }
 
     @Transactional

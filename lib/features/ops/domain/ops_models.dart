@@ -43,7 +43,10 @@ class PurchaseLine {
     required this.name,
     this.unit,
     required this.totalQuantity,
+    required this.bufferPercent,
+    required this.buyQuantity,
     required this.forecastRate,
+    required this.maxRate,
     this.capturedRate,
     required this.estimatedAmount,
   });
@@ -52,18 +55,73 @@ class PurchaseLine {
   final String name;
   final String? unit;
   final int totalQuantity;
+  final int bufferPercent;
+  final int buyQuantity;
   final double forecastRate;
+  final double maxRate;
   final double? capturedRate;
   final double estimatedAmount;
+
+  /// Actual-vs-forecast variance as a fraction (e.g. 0.158 = +15.8%). Null until captured.
+  double? get variance =>
+      (capturedRate == null || forecastRate == 0) ? null : (capturedRate! - forecastRate) / forecastRate;
+
+  /// Material price change flag (Vol2A: |variance| > 10%).
+  bool get isPriceAlert => variance != null && variance!.abs() > 0.10;
 
   factory PurchaseLine.fromJson(Map<String, dynamic> j) => PurchaseLine(
         productId: j['productId'] as String,
         name: j['name'] as String,
         unit: j['unit'] as String?,
         totalQuantity: (j['totalQuantity'] as num).toInt(),
+        bufferPercent: (j['bufferPercent'] as num?)?.toInt() ?? 0,
+        buyQuantity: (j['buyQuantity'] as num?)?.toInt() ?? (j['totalQuantity'] as num).toInt(),
         forecastRate: _d(j['forecastRate']),
+        maxRate: _d(j['maxRate']),
         capturedRate: j['capturedRate'] == null ? null : _d(j['capturedRate']),
         estimatedAmount: _d(j['estimatedAmount']),
+      );
+}
+
+class CutoffException {
+  const CutoffException({required this.orderRef, required this.reason, required this.type});
+  final String orderRef;
+  final String reason;
+  final String type;
+
+  factory CutoffException.fromJson(Map<String, dynamic> j) => CutoffException(
+        orderRef: j['orderRef'] as String,
+        reason: j['reason'] as String,
+        type: j['type'] as String? ?? 'INFO',
+      );
+}
+
+class Cutoff {
+  const Cutoff({
+    required this.weekStart,
+    required this.approved,
+    required this.pending,
+    required this.needsAttention,
+    required this.cancelled,
+    required this.exceptions,
+  });
+
+  final String weekStart;
+  final int approved;
+  final int pending;
+  final int needsAttention;
+  final int cancelled;
+  final List<CutoffException> exceptions;
+
+  factory Cutoff.fromJson(Map<String, dynamic> j) => Cutoff(
+        weekStart: j['weekStart'] as String,
+        approved: (j['approved'] as num).toInt(),
+        pending: (j['pending'] as num).toInt(),
+        needsAttention: (j['needsAttention'] as num).toInt(),
+        cancelled: (j['cancelled'] as num).toInt(),
+        exceptions: ((j['exceptions'] as List?) ?? const [])
+            .map((e) => CutoffException.fromJson(e as Map<String, dynamic>))
+            .toList(),
       );
 }
 

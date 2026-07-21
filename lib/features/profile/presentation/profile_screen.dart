@@ -61,7 +61,7 @@ class ProfileScreen extends ConsumerWidget {
                 NsCard(
                   color: AppColors.forestDark,
                   borderColor: AppColors.forestDark,
-                  onTap: () => context.go(Routes.ops),
+                  onTap: () => context.push(Routes.ops),
                   child: const Row(children: <Widget>[
                     Icon(Icons.storefront_outlined, color: AppColors.textOnDark),
                     SizedBox(width: Gap.md),

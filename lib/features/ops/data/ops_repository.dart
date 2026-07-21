@@ -27,6 +27,14 @@ class OpsRepository {
     }
   }
 
+  Future<Cutoff> cutoff() async {
+    try {
+      return Cutoff.fromJson(await _client.get('/ops/cutoff') as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiFailure.fromDio(e);
+    }
+  }
+
   /// Upsert the real Sunday rates ({productId: actualRate}).
   Future<CaptureResult> capturePrices(Map<String, double> rates) async {
     try {
