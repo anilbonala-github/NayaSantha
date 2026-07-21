@@ -6,7 +6,7 @@ import '../../features/auth_screens.dart';
 import '../../features/checkout_screens.dart' hide OrdersScreen;
 import '../../features/lifestyle_screens.dart' hide PantryScreen, AssistantScreen;
 import '../../features/offers_screen.dart';
-import '../../features/onboarding_screens.dart' hide AddressScreen;
+import '../../features/onboarding/presentation/onboarding_screens.dart';
 import '../../features/address/presentation/address_screen.dart';
 import '../../features/assistant/presentation/assistant_screen.dart';
 import '../../features/basket/presentation/basket_screen.dart';

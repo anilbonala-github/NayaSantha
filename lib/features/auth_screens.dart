@@ -10,8 +10,10 @@ import '../core/router/routes.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_theme.dart';
 import '../core/widgets/common.dart';
+import '../core/api/api_failure.dart';
 import '../state/app_state.dart';
 import 'auth/presentation/auth_controller.dart';
+import 'profile/presentation/profile_providers.dart';
 
 /// 01 — Splash. Brand moment plus session restore.
 class SplashScreen extends StatefulWidget {
@@ -386,18 +388,19 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
 }
 
 /// 05 — Registration. Minimal fields; everything else is asked during setup.
-class RegisterScreen extends StatefulWidget {
+class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
 
   @override
-  State<RegisterScreen> createState() => _RegisterScreenState();
+  ConsumerState<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _RegisterScreenState extends State<RegisterScreen> {
+class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final TextEditingController _name = TextEditingController();
   final TextEditingController _email = TextEditingController();
   final TextEditingController _referral = TextEditingController();
   String? _nameError;
+  bool _busy = false;
 
   @override
   void dispose() {
@@ -407,13 +410,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
-  void _continue() {
+  Future<void> _continue() async {
     if (_name.text.trim().length < 2) {
       setState(() => _nameError = 'Tell us what to call you');
       return;
     }
-    context.read<AppState>().completeRegistration(_name.text);
-    context.go(Routes.familyProfile);
+    setState(() => _busy = true);
+    try {
+      await ref.read(profileRepositoryProvider).updateProfile(
+            name: _name.text.trim(),
+            email: _email.text.trim().isEmpty ? null : _email.text.trim(),
+          );
+      ref.invalidate(profileProvider);
+      if (mounted) context.go(Routes.familyProfile);
+    } on ApiFailure catch (f) {
+      if (mounted) {
+        setState(() => _busy = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(f.userMessage), backgroundColor: AppColors.danger));
+      }
+    }
   }
 
   @override
@@ -453,8 +469,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
             const SizedBox(height: Gap.xl),
             FilledButton(
-              onPressed: _continue,
-              child: const Text('Continue'),
+              onPressed: _busy ? null : _continue,
+              child: _busy
+                  ? const SizedBox(
+                      height: 20, width: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Text('Continue'),
             ),
           ],
         ),

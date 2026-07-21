@@ -29,6 +29,12 @@ public class ProfileController {
         return ApiResponse.of(profileService.updateProfile(CurrentUser.id(), body));
     }
 
+    /** Marks onboarding complete (Vol2 §6.1 profileCompletionStatus). */
+    @PostMapping("/profile/complete")
+    public ApiResponse<ProfileDto> completeOnboarding() {
+        return ApiResponse.of(profileService.completeOnboarding(CurrentUser.id()));
+    }
+
     @GetMapping("/households/current")
     public ApiResponse<HouseholdDto> getHousehold() {
         return ApiResponse.of(profileService.getCurrentHousehold(CurrentUser.id()));

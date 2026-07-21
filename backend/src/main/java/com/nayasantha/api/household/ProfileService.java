@@ -38,6 +38,14 @@ public class ProfileService {
         return ProfileDto.from(users.save(u));
     }
 
+    /** Marks onboarding finished so the app stops routing the user through setup. */
+    @Transactional
+    public ProfileDto completeOnboarding(UUID userId) {
+        User u = loadUser(userId);
+        u.setProfileCompletionStatus(User.ProfileCompletionStatus.COMPLETE);
+        return ProfileDto.from(users.save(u));
+    }
+
     /** Returns the current household, creating an empty one on first access. */
     @Transactional
     public HouseholdDto getCurrentHousehold(UUID userId) {
@@ -51,8 +59,7 @@ public class ProfileService {
 
     @Transactional
     public HouseholdDto updateHousehold(UUID userId, UpdateHouseholdRequest req) {
-        Household h = households.findByOwnerUserId(userId)
-                .orElseThrow(() -> ApiException.notFound("Household"));
+        Household h = requireHousehold(userId);
         applyOptimisticVersion(h.getVersion(), req.version());
         if (req.weeklyBudget() != null) h.setWeeklyBudget(req.weeklyBudget());
         if (req.language() != null) h.setLanguage(req.language());
@@ -98,9 +105,13 @@ public class ProfileService {
         return users.findById(userId).orElseThrow(() -> ApiException.notFound("User"));
     }
 
+    /** Get-or-create the household so onboarding writes never fail on ordering. */
     private Household requireHousehold(UUID userId) {
-        return households.findByOwnerUserId(userId)
-                .orElseThrow(() -> ApiException.notFound("Household"));
+        return households.findByOwnerUserId(userId).orElseGet(() -> {
+            Household created = new Household();
+            created.setOwnerUserId(userId);
+            return households.save(created);
+        });
     }
 
     private void markOnboarding(UUID userId) {
