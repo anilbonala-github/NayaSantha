@@ -8,6 +8,7 @@ import '../../features/home_screen.dart';
 import '../../features/lifestyle_screens.dart';
 import '../../features/offers_screen.dart';
 import '../../features/onboarding_screens.dart';
+import '../../features/catalogue/presentation/catalogue_screen.dart';
 import '../../features/shopping_screens.dart';
 import '../../features/weekly_plan_screen.dart';
 import '../widgets/app_shell.dart';
@@ -75,9 +76,9 @@ GoRouter buildRouter() {
           ),
           GoRoute(
             path: Routes.categories,
-            pageBuilder: (BuildContext c, GoRouterState s) => _shellPage(
-              CategoriesScreen(initialCategoryId: s.uri.queryParameters['id']),
-            ),
+            // Dynamic catalogue backed by the API (replaces mock CategoriesScreen).
+            pageBuilder: (BuildContext c, GoRouterState s) =>
+                _shellPage(const CatalogueScreen()),
           ),
           GoRoute(
             path: Routes.pantry,
