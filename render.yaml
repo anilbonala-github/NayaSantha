@@ -1,0 +1,30 @@
+# Render blueprint for the NayaSantha backend (render.com).
+# Deploy: Render dashboard -> New -> Blueprint -> pick this repo. Then set the
+# three secret env vars below (your Neon connection) in the service's Environment.
+#
+# The same env vars work on Railway/Fly/any host if you prefer those.
+services:
+  - type: web
+    name: nayasantha-api
+    runtime: docker
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    plan: free                       # free tier sleeps after ~15 min idle (cold start ~30-60s)
+    region: virginia                 # US-East, same region as the Neon DB (minimises query latency)
+    healthCheckPath: /api/v1/ping
+    autoDeploy: true                 # redeploy on push to the default branch
+    envVars:
+      # --- Neon connection (set these as secrets in the dashboard) ---
+      - key: SPRING_DATASOURCE_URL
+        sync: false                  # jdbc:postgresql://<host>/<db>?sslmode=require
+      - key: SPRING_DATASOURCE_USERNAME
+        sync: false
+      - key: SPRING_DATASOURCE_PASSWORD
+        sync: false
+      # --- App secrets ---
+      - key: JWT_SECRET
+        generateValue: true          # Render generates a strong value
+      - key: OTP_DEV_MODE
+        value: "true"                # keep the OTP stub until an SMS provider is wired
+      - key: GEMINI_API_KEY
+        sync: false                  # optional: set to enable real Gemini plans
