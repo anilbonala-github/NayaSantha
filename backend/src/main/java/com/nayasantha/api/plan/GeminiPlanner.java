@@ -7,8 +7,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -33,6 +35,36 @@ public class GeminiPlanner {
     }
 
     public boolean isEnabled() { return props.getGemini().isEnabled(); }
+
+    /** Diagnostic: makes a tiny call and reports the exact status/error (no key exposed). */
+    public Map<String, Object> selfTest() {
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("enabled", isEnabled());
+        out.put("model", props.getGemini().getModel());
+        if (!isEnabled()) {
+            out.put("ok", false);
+            out.put("error", "GEMINI_API_KEY not set");
+            return out;
+        }
+        try {
+            Map<String, Object> body = Map.of("contents",
+                    List.of(Map.of("parts", List.of(Map.of("text", "Reply with the single word: ok")))));
+            String url = BASE + props.getGemini().getModel() + ":generateContent?key=" + props.getGemini().getApiKey();
+            JsonNode res = http.post().uri(url).body(body).retrieve().body(JsonNode.class);
+            out.put("ok", true);
+            out.put("reply", res.path("candidates").path(0).path("content").path("parts").path(0)
+                    .path("text").asText(""));
+        } catch (RestClientResponseException e) {
+            out.put("ok", false);
+            out.put("status", e.getStatusCode().value());
+            String b = e.getResponseBodyAsString();
+            out.put("error", b.length() > 600 ? b.substring(0, 600) : b);
+        } catch (Exception e) {
+            out.put("ok", false);
+            out.put("error", e.getClass().getSimpleName() + ": " + e.getMessage());
+        }
+        return out;
+    }
 
     /** @param context sanitized household description; @param catalogue "sku | name | unit | Rs price" lines. */
     public PlanProposal propose(String context, List<String> catalogue) {
