@@ -41,6 +41,11 @@ class PantryNotifier extends AsyncNotifier<List<PantryItem>> {
     await _repo.remove(id);
     state = await AsyncValue.guard(_repo.list);
   }
+
+  Future<void> refresh() async {
+    state = const AsyncValue.loading();
+    state = await AsyncValue.guard(_repo.list);
+  }
 }
 
 final pantryProvider =
