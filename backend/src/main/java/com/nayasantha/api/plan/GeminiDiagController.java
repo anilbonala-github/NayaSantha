@@ -3,6 +3,7 @@ package com.nayasantha.api.plan;
 import com.nayasantha.api.common.ApiResponse;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
@@ -23,7 +24,8 @@ public class GeminiDiagController {
     }
 
     @GetMapping("/gemini-check")
-    public ApiResponse<Map<String, Object>> check() {
-        return ApiResponse.of(planner.selfTest());
+    public ApiResponse<Map<String, Object>> check(
+            @RequestParam(required = false) String model) {
+        return ApiResponse.of(planner.selfTest(model));
     }
 }

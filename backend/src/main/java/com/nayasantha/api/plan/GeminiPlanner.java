@@ -36,11 +36,14 @@ public class GeminiPlanner {
 
     public boolean isEnabled() { return props.getGemini().isEnabled(); }
 
-    /** Diagnostic: makes a tiny call and reports the exact status/error (no key exposed). */
-    public Map<String, Object> selfTest() {
+    /** Diagnostic: makes a tiny call and reports the exact status/error (no key exposed).
+     *  Optional {@code modelOverride} tests a specific model without changing config. */
+    public Map<String, Object> selfTest(String modelOverride) {
+        String model = (modelOverride != null && !modelOverride.isBlank())
+                ? modelOverride : props.getGemini().getModel();
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("enabled", isEnabled());
-        out.put("model", props.getGemini().getModel());
+        out.put("model", model);
         if (!isEnabled()) {
             out.put("ok", false);
             out.put("error", "GEMINI_API_KEY not set");
@@ -49,7 +52,7 @@ public class GeminiPlanner {
         try {
             Map<String, Object> body = Map.of("contents",
                     List.of(Map.of("parts", List.of(Map.of("text", "Reply with the single word: ok")))));
-            String url = BASE + props.getGemini().getModel() + ":generateContent?key=" + props.getGemini().getApiKey();
+            String url = BASE + model + ":generateContent?key=" + props.getGemini().getApiKey();
             JsonNode res = http.post().uri(url).body(body).retrieve().body(JsonNode.class);
             out.put("ok", true);
             out.put("reply", res.path("candidates").path(0).path("content").path("parts").path(0)
