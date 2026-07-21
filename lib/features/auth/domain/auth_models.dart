@@ -5,20 +5,24 @@ class AuthUser {
     required this.mobile,
     this.name,
     required this.profileCompletionStatus,
+    this.role = 'CUSTOMER',
   });
 
   final String id;
   final String mobile;
   final String? name;
   final String profileCompletionStatus; // NEW | ONBOARDING | COMPLETE
+  final String role; // CUSTOMER | ADMIN
 
   bool get needsOnboarding => profileCompletionStatus != 'COMPLETE';
+  bool get isAdmin => role == 'ADMIN';
 
   factory AuthUser.fromJson(Map<String, dynamic> j) => AuthUser(
         id: j['id'] as String,
         mobile: j['mobile'] as String,
         name: j['name'] as String?,
         profileCompletionStatus: j['profileCompletionStatus'] as String,
+        role: (j['role'] as String?) ?? 'CUSTOMER',
       );
 }
 

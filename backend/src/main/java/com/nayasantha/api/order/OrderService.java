@@ -120,16 +120,36 @@ public class OrderService {
         return toDto(orders.save(order));
     }
 
-    // --- 2. Sunday settlement (DEV simulation of the ops price-capture, Vol3) -----
+    // --- 2. Sunday settlement --------------------------------------------------------
+    /** DEV simulation of ops price-capture: random actual -3%..+8% of forecast. */
     @Transactional
     public OrderDto simulateSettlement(UUID userId, UUID orderId) {
         Order order = owned(userId, orderId);
-        List<OrderItem> lines = items.findByOrderId(orderId);
         Random rnd = new Random();
+        return settle(order, oi -> oi.getForecastRate()
+                .multiply(BigDecimal.valueOf(1 + (-0.03 + rnd.nextDouble() * 0.11)))
+                .setScale(2, RoundingMode.HALF_UP));
+    }
+
+    /**
+     * Vol3 ops finalize: settle a locked order using the real market rates captured
+     * on Sunday ({@code productId -> actual rate}). Missing rates fall back to forecast.
+     */
+    @Transactional
+    public OrderDto settleWithCapturedRates(UUID orderId, Map<UUID, BigDecimal> ratesByProduct) {
+        Order order = orders.findById(orderId).orElseThrow(() -> ApiException.notFound("Order"));
+        return settle(order, oi -> {
+            BigDecimal r = oi.getProductId() == null ? null : ratesByProduct.get(oi.getProductId());
+            return (r != null ? r : oi.getForecastRate()).setScale(2, RoundingMode.HALF_UP);
+        });
+    }
+
+    /** Shared settlement core: apply per-line actual rates, then enforce the cap (Vol2A). */
+    private OrderDto settle(Order order, java.util.function.Function<OrderItem, BigDecimal> rateFn) {
+        List<OrderItem> lines = items.findByOrderId(order.getId());
         BigDecimal finalTotal = BigDecimal.ZERO;
         for (OrderItem oi : lines) {
-            double factor = 1 + (-0.03 + rnd.nextDouble() * 0.11);   // actual -3%..+8% of forecast
-            BigDecimal actual = oi.getForecastRate().multiply(BigDecimal.valueOf(factor)).setScale(2, RoundingMode.HALF_UP);
+            BigDecimal actual = rateFn.apply(oi);
             oi.setActualRate(actual);
             oi.setFinalQty(oi.getQuantity());
             oi.setFinalAmount(actual.multiply(BigDecimal.valueOf(oi.getQuantity())));
@@ -205,6 +225,17 @@ public class OrderService {
         payments.save(auth);
         order.setStatus(Order.Status.PAID);
         return toDto(orders.save(order));
+    }
+
+    // --- ops gateway (Vol3): expose order data to the ops module without leaking repos --
+    @Transactional(readOnly = true)
+    public List<Order> ordersByStatus(Order.Status status) {
+        return orders.findByStatus(status);
+    }
+
+    @Transactional(readOnly = true)
+    public List<OrderItem> itemsOf(UUID orderId) {
+        return items.findByOrderId(orderId);
     }
 
     // --- reads --------------------------------------------------------------------

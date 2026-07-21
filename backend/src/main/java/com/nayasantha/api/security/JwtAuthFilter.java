@@ -13,7 +13,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.UUID;
 
 /** Authenticates requests carrying a valid {@code Authorization: Bearer <jwt>}. */
 @Component
@@ -32,9 +31,9 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         if (header != null && header.startsWith("Bearer ")
                 && SecurityContextHolder.getContext().getAuthentication() == null) {
             try {
-                UUID userId = jwtService.parseUserId(header.substring(7));
+                JwtService.Principal p = jwtService.parse(header.substring(7));
                 var auth = new UsernamePasswordAuthenticationToken(
-                        userId, null, AuthorityUtils.createAuthorityList("ROLE_CUSTOMER"));
+                        p.userId(), null, AuthorityUtils.createAuthorityList("ROLE_" + p.role()));
                 auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(auth);
             } catch (Exception ignored) {

@@ -39,6 +39,7 @@ public class SecurityConfig {
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(PUBLIC).permitAll()
+                .requestMatchers("/api/v1/ops/**").hasRole("ADMIN")
                 .anyRequest().authenticated())
             .exceptionHandling(e -> e.authenticationEntryPoint((req, res, ex) -> {
                 res.setStatus(ErrorCode.UNAUTHORIZED.status().value());

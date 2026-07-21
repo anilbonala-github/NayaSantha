@@ -6,6 +6,7 @@ class Profile {
     this.name,
     this.email,
     required this.profileCompletionStatus,
+    this.role = 'CUSTOMER',
   });
 
   final String id;
@@ -13,7 +14,9 @@ class Profile {
   final String? name;
   final String? email;
   final String profileCompletionStatus;
+  final String role; // CUSTOMER | ADMIN
 
+  bool get isAdmin => role == 'ADMIN';
   String get displayName => (name == null || name!.isEmpty) ? 'NayaSantha member' : name!;
   String get initial => displayName.isNotEmpty ? displayName[0].toUpperCase() : 'N';
 
@@ -23,6 +26,7 @@ class Profile {
         name: j['name'] as String?,
         email: j['email'] as String?,
         profileCompletionStatus: j['profileCompletionStatus'] as String? ?? 'NEW',
+        role: (j['role'] as String?) ?? 'CUSTOMER',
       );
 }
 

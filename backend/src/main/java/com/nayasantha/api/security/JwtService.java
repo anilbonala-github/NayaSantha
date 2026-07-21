@@ -24,11 +24,14 @@ public class JwtService {
         this.key = Keys.hmacShaKeyFor(props.getJwt().getSecret().getBytes(StandardCharsets.UTF_8));
     }
 
-    public String issueAccessToken(UUID userId, String mobile) {
+    public record Principal(UUID userId, String role) {}
+
+    public String issueAccessToken(UUID userId, String mobile, String role) {
         Instant now = Instant.now();
         return Jwts.builder()
                 .subject(userId.toString())
                 .claim("mobile", mobile)
+                .claim("role", role)
                 .issuer(props.getJwt().getIssuer())
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(now.plusSeconds(props.getJwt().getAccessTokenTtlSeconds())))
@@ -36,10 +39,11 @@ public class JwtService {
                 .compact();
     }
 
-    /** Returns the userId from a valid token, or throws if invalid/expired. */
-    public UUID parseUserId(String token) {
+    /** Returns the userId + role from a valid token, or throws if invalid/expired. */
+    public Principal parse(String token) {
         Claims claims = Jwts.parser().verifyWith(key).build()
                 .parseSignedClaims(token).getPayload();
-        return UUID.fromString(claims.getSubject());
+        String role = claims.get("role", String.class);
+        return new Principal(UUID.fromString(claims.getSubject()), role == null ? "CUSTOMER" : role);
     }
 }

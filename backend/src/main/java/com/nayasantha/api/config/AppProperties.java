@@ -9,6 +9,10 @@ public class AppProperties {
     private Jwt jwt = new Jwt();
     private Otp otp = new Otp();
     private Gemini gemini = new Gemini();
+    private java.util.List<String> adminMobiles = new java.util.ArrayList<>();
+
+    public java.util.List<String> getAdminMobiles() { return adminMobiles; }
+    public void setAdminMobiles(java.util.List<String> adminMobiles) { this.adminMobiles = adminMobiles; }
 
     public Jwt getJwt() { return jwt; }
     public void setJwt(Jwt jwt) { this.jwt = jwt; }

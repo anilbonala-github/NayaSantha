@@ -11,6 +11,7 @@ import java.util.UUID;
 // Grouped in one file for brevity; each is a standard top-level Spring Data repo.
 interface OrderRepository extends JpaRepository<Order, UUID> {
     Page<Order> findByUserIdOrderByCreatedAtDesc(UUID userId, Pageable pageable);
+    List<Order> findByStatus(Order.Status status);
 }
 
 interface OrderItemRepository extends JpaRepository<OrderItem, UUID> {

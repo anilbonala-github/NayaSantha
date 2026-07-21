@@ -32,6 +32,11 @@ public class User extends BaseEntity {
     @Column(name = "last_login_at")
     private Instant lastLoginAt;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Role role = Role.CUSTOMER;
+
     public enum Status { ACTIVE, SUSPENDED, DELETED }
     public enum ProfileCompletionStatus { NEW, ONBOARDING, COMPLETE }
+    public enum Role { CUSTOMER, ADMIN }
 }

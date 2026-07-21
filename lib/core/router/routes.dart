@@ -37,6 +37,7 @@ class Routes {
   static const String profile = '/profile';
   static const String settings = '/settings';
   static const String offers = '/offers';
+  static const String ops = '/ops'; // Vol3 ops/admin portal (ADMIN only)
 
   static String productPath(String id) => '$product/$id';
   static String orderBillPath(String id) => '$orderBill/$id';

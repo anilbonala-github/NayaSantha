@@ -14,6 +14,7 @@ import '../../features/catalogue/presentation/catalogue_screen.dart';
 import '../../features/catalogue/presentation/product_detail_screen.dart';
 import '../../features/catalogue/presentation/search_screen.dart';
 import '../../features/home/presentation/dashboard_screen.dart';
+import '../../features/ops/presentation/ops_screen.dart';
 import '../../features/order/presentation/order_bill_screen.dart';
 import '../../features/order/presentation/orders_screen.dart';
 import '../../features/pantry/presentation/pantry_screen.dart';
@@ -158,6 +159,7 @@ GoRouter buildRouter() {
       ),
       GoRoute(path: Routes.referral, builder: (_, __) => const ReferralScreen()),
       GoRoute(path: Routes.settings, builder: (_, __) => const SettingsScreen()),
+      GoRoute(path: Routes.ops, builder: (_, __) => const OpsScreen()),
     ],
     errorBuilder: (BuildContext c, GoRouterState s) => Scaffold(
       appBar: AppBar(title: const Text('Page not found')),

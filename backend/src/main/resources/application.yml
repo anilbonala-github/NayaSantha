@@ -29,6 +29,8 @@ server:
 
 # JWT + app settings (override the secret in every non-dev environment)
 nayasantha:
+  # Comma-separated mobiles granted the ADMIN (ops portal) role on login.
+  admin-mobiles: ${ADMIN_MOBILES:}
   jwt:
     secret: ${JWT_SECRET:dev-only-insecure-secret-change-me-0123456789abcdef}
     access-token-ttl-seconds: 3600            # 1 hour

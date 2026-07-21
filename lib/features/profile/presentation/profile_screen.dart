@@ -56,6 +56,29 @@ class ProfileScreen extends ConsumerWidget {
                   _tile(context, Icons.settings_outlined, 'Settings', Routes.settings),
                 ]),
               ),
+              if (profile.isAdmin) ...<Widget>[
+                const SizedBox(height: Gap.lg),
+                NsCard(
+                  color: AppColors.forestDark,
+                  borderColor: AppColors.forestDark,
+                  onTap: () => context.go(Routes.ops),
+                  child: const Row(children: <Widget>[
+                    Icon(Icons.storefront_outlined, color: AppColors.textOnDark),
+                    SizedBox(width: Gap.md),
+                    Expanded(
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: <Widget>[
+                        Text('Ops portal',
+                            style: TextStyle(
+                                color: AppColors.textOnDark, fontWeight: FontWeight.w800, fontSize: 16)),
+                        SizedBox(height: 2),
+                        Text('Sunday procurement & price capture',
+                            style: TextStyle(color: AppColors.textOnDark, fontSize: 12)),
+                      ]),
+                    ),
+                    Icon(Icons.chevron_right, color: AppColors.textOnDark),
+                  ]),
+                ),
+              ],
               const SizedBox(height: Gap.lg),
               SizedBox(
                 width: double.infinity,

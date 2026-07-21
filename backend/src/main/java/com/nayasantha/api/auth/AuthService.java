@@ -46,6 +46,8 @@ public class AuthService {
             return u;
         });
         user.setLastLoginAt(Instant.now());
+        // Grant the ops-portal ADMIN role to configured mobiles.
+        user.setRole(props.getAdminMobiles().contains(mobile) ? User.Role.ADMIN : User.Role.CUSTOMER);
         user = users.save(user);
 
         return issueTokens(user, userAgent);
@@ -77,7 +79,7 @@ public class AuthService {
     }
 
     private AuthDtos.TokenResponse issueTokens(User user, String userAgent) {
-        String accessToken = jwtService.issueAccessToken(user.getId(), user.getMobile());
+        String accessToken = jwtService.issueAccessToken(user.getId(), user.getMobile(), user.getRole().name());
 
         String refreshRaw = Hashing.randomToken();
         AuthSession session = new AuthSession();

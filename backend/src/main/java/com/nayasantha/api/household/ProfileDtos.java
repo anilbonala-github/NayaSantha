@@ -15,10 +15,10 @@ public final class ProfileDtos {
     private ProfileDtos() {}
 
     public record ProfileDto(UUID id, String mobile, String name, String email,
-                             String profileCompletionStatus) {
+                             String profileCompletionStatus, String role) {
         static ProfileDto from(User u) {
             return new ProfileDto(u.getId(), u.getMobile(), u.getName(), u.getEmail(),
-                    u.getProfileCompletionStatus().name());
+                    u.getProfileCompletionStatus().name(), u.getRole().name());
         }
     }
 

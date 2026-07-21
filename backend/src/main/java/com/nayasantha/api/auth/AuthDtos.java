@@ -26,10 +26,10 @@ public final class AuthDtos {
     public record LogoutRequest(@NotBlank String refreshToken) {}
 
     public record AuthUserDto(UUID id, String mobile, String name,
-                              String profileCompletionStatus) {
+                              String profileCompletionStatus, String role) {
         static AuthUserDto from(User u) {
             return new AuthUserDto(u.getId(), u.getMobile(), u.getName(),
-                    u.getProfileCompletionStatus().name());
+                    u.getProfileCompletionStatus().name(), u.getRole().name());
         }
     }
 
