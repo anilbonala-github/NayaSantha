@@ -48,11 +48,26 @@ Monorepo: `backend/` (Java) beside the Flutter app (repo root).
 - Verified: pantry LOW/EXPIRING status; plan estimate ₹1481 ≤ budget ₹1500; Groundnut
   Oil excluded for a peanut allergy.
 
-## Remaining phases (Vol2 §15)
-- **UI wiring** (P1–P3): point the catalogue/basket/pantry/AI-plan/profile/address
-  **screens** at their providers (auth screens already migrated). Data layers exist.
-- **P4** Pricing consent + Saturday cutoff — needs the **Volume 2A** doc (not yet provided).
-- **P5** Checkout / payments / orders / notifications.
+## Phase 4 — Pricing consent + Sunday settlement ✅ (backend, per Volume 2A)
+- **Backend** (verified vs Neon): the Estimated + **Guaranteed Maximum** + Final
+  Settlement model. Plan max = `RoundUpTo5(estimate × 1.025)`. Approve stores an
+  audited **price consent** (4 substitution preferences) + snapshots an **order** +
+  a UPI-Autopay-style **authorization** of the cap. Sunday settlement (dev-simulated
+  market prices): within cap → auto-capture; over cap → **price exception** +
+  customer decision (accept / remove-expensive / cancel); capture charges only the
+  final amount. Endpoints per Vol2A §11 (approve, lock, price-decision, capture,
+  price-comparison, orders).
+- Verified: formula, within-cap capture (charged ₹1494 ≤ ₹1520 cap), and over-cap
+  path (₹1502 market → trimmed to ₹558 under a ₹600 cap). Customer never charged above cap.
+- **Flutter data layer**: TODO (orders/consent repository + providers) — next.
+
+## Remaining
+- **Flutter data layer** for Phase 4 orders/consent, then **UI wiring** for all
+  phases (catalogue/basket/pantry/AI-plan/consent/final-bill screens → providers;
+  auth already migrated).
+- **Ops/admin portal** (Vol3): real Sunday procurement + price capture (currently
+  dev-simulated), packing/dispatch. Real payment provider + FCM notifications.
+- Redis (cutoff timers), object storage (invoices/bills), offline sync, tests.
 - **P3 Pantry + Weekly Plan**: household preferences, pantry, AI plan (Gemini,
   validated server-side).
 - **P4 Pricing consent + Saturday cutoff** — needs the **Volume 2A** pricing doc
