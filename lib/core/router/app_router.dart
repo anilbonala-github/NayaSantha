@@ -10,8 +10,8 @@ import '../../features/offers_screen.dart';
 import '../../features/onboarding_screens.dart';
 import '../../features/basket/presentation/basket_screen.dart';
 import '../../features/catalogue/presentation/catalogue_screen.dart';
+import '../../features/plan/presentation/weekly_plan_screen.dart';
 import '../../features/shopping_screens.dart' hide BasketScreen;
-import '../../features/weekly_plan_screen.dart';
 import '../widgets/app_shell.dart';
 import 'routes.dart';
 
@@ -73,7 +73,7 @@ GoRouter buildRouter() {
           ),
           GoRoute(
             path: Routes.weeklyPlan,
-            pageBuilder: (_, __) => _shellPage(const WeeklyPlanScreen()),
+            pageBuilder: (_, __) => _shellPage(const AiWeeklyPlanScreen()),
           ),
           GoRoute(
             path: Routes.categories,
