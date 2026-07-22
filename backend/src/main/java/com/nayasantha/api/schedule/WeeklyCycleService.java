@@ -9,7 +9,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.time.temporal.TemporalAdjusters;
 import java.util.List;
 
@@ -23,8 +22,6 @@ import java.util.List;
 @Service
 public class WeeklyCycleService {
 
-    static final ZoneId IST = ZoneId.of("Asia/Kolkata");
-
     private final WeeklyPlanRepository plans;
     private final NotificationService notifications;
     private final OrderService orders;
@@ -36,14 +33,19 @@ public class WeeklyCycleService {
         this.orders = orders;
     }
 
-    static LocalDate currentWeekStart() {
-        return LocalDate.now(IST).with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+    /**
+     * The plan's week key — the upcoming delivery Sunday — computed exactly as
+     * {@code WeeklyPlanService} does ({@code nextOrSame(SUNDAY)}), so the reminder
+     * query matches the stored {@code weekStart}.
+     */
+    static LocalDate currentPlanWeek() {
+        return LocalDate.now().with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY));
     }
 
     /** Nudge households whose plan for this week is still a draft (not approved). */
     @Transactional
     public int sendCutoffReminders() {
-        List<WeeklyPlan> drafts = plans.findByStatusAndWeekStart(WeeklyPlan.Status.DRAFT, currentWeekStart());
+        List<WeeklyPlan> drafts = plans.findByStatusAndWeekStart(WeeklyPlan.Status.DRAFT, currentPlanWeek());
         for (WeeklyPlan p : drafts) {
             notifications.create(p.getUserId(), NotificationService.CUTOFF_REMINDER,
                     "Your weekly basket is ready",
