@@ -2,6 +2,7 @@ package com.nayasantha.api.ops;
 
 import com.nayasantha.api.common.ApiResponse;
 import com.nayasantha.api.ops.OpsDtos.*;
+import com.nayasantha.api.schedule.WeeklyCycleService;
 import com.nayasantha.api.security.CurrentUser;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -9,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Vol3 ops/admin portal. Guarded by {@code hasRole('ADMIN')} in SecurityConfig,
@@ -19,9 +21,23 @@ import java.util.List;
 public class OpsController {
 
     private final OpsService ops;
+    private final WeeklyCycleService cycle;
 
-    public OpsController(OpsService ops) {
+    public OpsController(OpsService ops, WeeklyCycleService cycle) {
         this.ops = ops;
+        this.cycle = cycle;
+    }
+
+    /** Manually send the Saturday cutoff reminders (fallback when the cron can't run). */
+    @PostMapping("/run-reminder")
+    public ApiResponse<Map<String, Integer>> runReminder() {
+        return ApiResponse.of(Map.of("remindersSent", cycle.sendCutoffReminders()));
+    }
+
+    /** Manually run the Saturday cutoff — lock all confirmed orders. */
+    @PostMapping("/run-cutoff")
+    public ApiResponse<Map<String, Integer>> runCutoff() {
+        return ApiResponse.of(Map.of("ordersLocked", cycle.runCutoff()));
     }
 
     /** Cutoff snapshot: locked orders, households, totals, price-capture progress. */

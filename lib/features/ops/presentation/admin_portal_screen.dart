@@ -140,6 +140,25 @@ class _AdminPortalScreenState extends ConsumerState<AdminPortalScreen> {
     }
   }
 
+  Future<void> _runCycle({required bool reminder}) async {
+    setState(() => _busy = true);
+    try {
+      final repo = ref.read(opsRepositoryProvider);
+      if (reminder) {
+        final n = await repo.runReminder();
+        _snack('Sent $n cutoff reminder(s)');
+      } else {
+        final n = await repo.runCutoff();
+        _snack('Cutoff run — locked $n confirmed order(s)');
+      }
+      _refresh();
+    } on ApiFailure catch (f) {
+      _snack(f.userMessage, error: true);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   void _snack(String msg, {bool error = false}) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -291,6 +310,20 @@ class _AdminPortalScreenState extends ConsumerState<AdminPortalScreen> {
           _tile('Pending', '${c.pending}', Icons.hourglass_bottom, AppColors.warning),
           _tile('Needs attention', '${c.needsAttention}', Icons.error_outline, AppColors.danger),
           _tile('Cancelled', '${c.cancelled}', Icons.cancel, AppColors.textSecondary),
+        ]),
+        const SizedBox(height: Gap.md),
+        Wrap(spacing: Gap.md, runSpacing: Gap.sm, children: <Widget>[
+          OutlinedButton.icon(
+            onPressed: _busy ? null : () => _runCycle(reminder: true),
+            icon: const Icon(Icons.notifications_active_outlined, size: 18),
+            label: const Text('Send reminders'),
+          ),
+          FilledButton.icon(
+            onPressed: (_busy || c.pending == 0) ? null : () => _runCycle(reminder: false),
+            icon: const Icon(Icons.lock_clock, size: 18),
+            label: const Text('Run cutoff — lock confirmed'),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.forest),
+          ),
         ]),
         const SizedBox(height: Gap.lg),
         SectionHeader(title: 'Exceptions queue (${c.exceptions.length})'),

@@ -56,4 +56,24 @@ class OpsRepository {
       throw ApiFailure.fromDio(e);
     }
   }
+
+  /// Manually fire the Saturday cutoff reminders. Returns how many were sent.
+  Future<int> runReminder() async {
+    try {
+      final data = await _client.post('/ops/run-reminder') as Map<String, dynamic>;
+      return (data['remindersSent'] as num?)?.toInt() ?? 0;
+    } on DioException catch (e) {
+      throw ApiFailure.fromDio(e);
+    }
+  }
+
+  /// Manually run the cutoff — lock all confirmed orders. Returns how many were locked.
+  Future<int> runCutoff() async {
+    try {
+      final data = await _client.post('/ops/run-cutoff') as Map<String, dynamic>;
+      return (data['ordersLocked'] as num?)?.toInt() ?? 0;
+    } on DioException catch (e) {
+      throw ApiFailure.fromDio(e);
+    }
+  }
 }

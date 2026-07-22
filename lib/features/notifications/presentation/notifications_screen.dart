@@ -96,6 +96,7 @@ class _NotificationTile extends StatelessWidget {
     'MARKET_UPDATE': (Icons.storefront_outlined, AppColors.info),
     'PRICE_EXCEPTION': (Icons.warning_amber_rounded, AppColors.danger),
     'PAYMENT_COMPLETE': (Icons.receipt_long_outlined, AppColors.primary),
+    'CUTOFF_REMINDER': (Icons.alarm, AppColors.carrot),
   };
 
   @override

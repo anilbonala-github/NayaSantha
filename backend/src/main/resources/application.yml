@@ -31,6 +31,10 @@ server:
 nayasantha:
   # Comma-separated mobiles granted the ADMIN (ops portal) role on login.
   admin-mobiles: ${ADMIN_MOBILES:}
+  scheduler:
+    # Cron for the weekly calendar (Sat 8PM reminder, Sat 10PM cutoff), IST.
+    # Keep false on sleeping/multi-instance hosts; use the ADMIN manual triggers.
+    enabled: ${SCHEDULER_ENABLED:false}
   jwt:
     secret: ${JWT_SECRET:dev-only-insecure-secret-change-me-0123456789abcdef}
     access-token-ttl-seconds: 3600            # 1 hour

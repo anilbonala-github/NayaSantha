@@ -7,4 +7,5 @@ import java.util.UUID;
 
 public interface WeeklyPlanRepository extends JpaRepository<WeeklyPlan, UUID> {
     Optional<WeeklyPlan> findFirstByUserIdOrderByCreatedAtDesc(UUID userId);
+    java.util.List<WeeklyPlan> findByStatusAndWeekStart(WeeklyPlan.Status status, java.time.LocalDate weekStart);
 }

@@ -268,6 +268,19 @@ public class OrderService {
         return orders.findByStatus(status);
     }
 
+    /** Saturday 10 PM cutoff: lock every confirmed order for procurement. Returns count locked. */
+    @Transactional
+    public int lockAllConfirmed() {
+        List<Order> confirmed = orders.findByStatus(Order.Status.CONFIRMED);
+        Instant now = Instant.now();
+        for (Order o : confirmed) {
+            o.setStatus(Order.Status.LOCKED);
+            o.setLockedAt(now);
+            orders.save(o);
+        }
+        return confirmed.size();
+    }
+
     @Transactional(readOnly = true)
     public List<OrderItem> itemsOf(UUID orderId) {
         return items.findByOrderId(orderId);
