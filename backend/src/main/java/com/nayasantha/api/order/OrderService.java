@@ -40,11 +40,13 @@ public class OrderService {
     private final WeeklyPlanItemRepository planItems;
     private final ProductRepository products;
     private final com.nayasantha.api.notification.NotificationService notifications;
+    private final com.nayasantha.api.address.AddressRepository addresses;
 
     public OrderService(OrderRepository orders, OrderItemRepository items, PriceConsentRepository consents,
                         PaymentAuthorizationRepository payments, PriceExceptionRepository exceptions,
                         WeeklyPlanRepository plans, WeeklyPlanItemRepository planItems, ProductRepository products,
-                        com.nayasantha.api.notification.NotificationService notifications) {
+                        com.nayasantha.api.notification.NotificationService notifications,
+                        com.nayasantha.api.address.AddressRepository addresses) {
         this.orders = orders;
         this.items = items;
         this.consents = consents;
@@ -54,6 +56,7 @@ public class OrderService {
         this.planItems = planItems;
         this.products = products;
         this.notifications = notifications;
+        this.addresses = addresses;
     }
 
     private static String money(BigDecimal v) {
@@ -80,6 +83,17 @@ public class OrderService {
         order.setEstimatedTotal(plan.getEstimatedTotal());
         order.setMaximumPayable(maxPayable);
         order.setDeliverySlot("Sun 2:00-8:00 PM");
+        // Snapshot the delivery community for packing/delivery waves (Vol2A §7.4).
+        var defaultAddress = addresses.findByUserIdOrderByIsDefaultDescCreatedAtDesc(userId)
+                .stream().findFirst().orElse(null);
+        if (defaultAddress != null) {
+            var a = defaultAddress;
+            order.setCommunity(a.getApartment() != null && !a.getApartment().isBlank()
+                    ? a.getApartment() : a.getLabel());
+            order.setAddressSnapshot(String.join(", ", java.util.stream.Stream.of(
+                    a.getLine1(), a.getApartment(), a.getCity(), a.getPincode())
+                    .filter(s -> s != null && !s.isBlank()).toList()));
+        }
         order = orders.save(order);
 
         Map<UUID, Product> byId = new HashMap<>();
@@ -281,6 +295,45 @@ public class OrderService {
         return confirmed.size();
     }
 
+    // --- fulfillment transitions (Vol2A §7.4 packing, Vol1 §14 delivery) ----------
+    private Order requireOrder(UUID orderId) {
+        return orders.findById(orderId).orElseThrow(() -> ApiException.notFound("Order"));
+    }
+
+    @Transactional
+    public Order packOrder(UUID orderId) {
+        Order o = requireOrder(orderId);
+        o.setFulfillmentStage(Order.FulfillmentStage.PACKED);
+        return orders.save(o);
+    }
+
+    @Transactional
+    public Order dispatchOrder(UUID orderId) {
+        Order o = requireOrder(orderId);
+        o.setFulfillmentStage(Order.FulfillmentStage.OUT_FOR_DELIVERY);
+        orders.save(o);
+        notifications.create(o.getUserId(),
+                com.nayasantha.api.notification.NotificationService.OUT_FOR_DELIVERY,
+                "Out for delivery",
+                "Your NayaSantha order is on the way for the " + o.getDeliverySlot() + " slot.",
+                o.getId());
+        return o;
+    }
+
+    @Transactional
+    public Order deliverOrder(UUID orderId) {
+        Order o = requireOrder(orderId);
+        o.setFulfillmentStage(Order.FulfillmentStage.DELIVERED);
+        o.setStatus(Order.Status.DELIVERED);
+        orders.save(o);
+        notifications.create(o.getUserId(),
+                com.nayasantha.api.notification.NotificationService.DELIVERED,
+                "Delivered",
+                "Your order was delivered. Your final invoice and savings summary are ready.",
+                o.getId());
+        return o;
+    }
+
     @Transactional(readOnly = true)
     public List<OrderItem> itemsOf(UUID orderId) {
         return items.findByOrderId(orderId);
@@ -375,6 +428,7 @@ public class OrderService {
                 : order.getEstimatedTotal().subtract(order.getFinalTotal());
         return new OrderDto(order.getId(), order.getStatus().name(), order.getPricePreference(),
                 order.getEstimatedTotal(), order.getMaximumPayable(), order.getFinalTotal(), savings,
-                order.getDeliverySlot(), paymentStatus, itemDtos, exDto, order.getCreatedAt(), order.getVersion());
+                order.getDeliverySlot(), order.getFulfillmentStage().name(), paymentStatus, itemDtos, exDto,
+                order.getCreatedAt(), order.getVersion());
     }
 }

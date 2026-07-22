@@ -76,4 +76,32 @@ class OpsRepository {
       throw ApiFailure.fromDio(e);
     }
   }
+
+  Future<PackingSummary> packing() async {
+    try {
+      return PackingSummary.fromJson(await _client.get('/ops/packing') as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiFailure.fromDio(e);
+    }
+  }
+
+  Future<DeliverySummary> delivery() async {
+    try {
+      return DeliverySummary.fromJson(await _client.get('/ops/delivery') as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiFailure.fromDio(e);
+    }
+  }
+
+  Future<void> pack(String orderId) => _act('/ops/orders/$orderId/pack');
+  Future<void> dispatch(String orderId) => _act('/ops/orders/$orderId/dispatch');
+  Future<void> deliver(String orderId) => _act('/ops/orders/$orderId/deliver');
+
+  Future<void> _act(String path) async {
+    try {
+      await _client.post(path);
+    } on DioException catch (e) {
+      throw ApiFailure.fromDio(e);
+    }
+  }
 }

@@ -70,4 +70,30 @@ public class OpsController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate weekStart) {
         return ApiResponse.of(ops.finalizeWeek(weekStart));
     }
+
+    // --- fulfillment: packing (§7.4) + delivery (Vol1 §14) ----------------------
+    @GetMapping("/packing")
+    public ApiResponse<PackingDto> packing() {
+        return ApiResponse.of(ops.packing());
+    }
+
+    @GetMapping("/delivery")
+    public ApiResponse<DeliveryDto> delivery() {
+        return ApiResponse.of(ops.delivery());
+    }
+
+    @PostMapping("/orders/{id}/pack")
+    public ApiResponse<Map<String, String>> pack(@PathVariable java.util.UUID id) {
+        return ApiResponse.of(Map.of("stage", ops.pack(id)));
+    }
+
+    @PostMapping("/orders/{id}/dispatch")
+    public ApiResponse<Map<String, String>> dispatch(@PathVariable java.util.UUID id) {
+        return ApiResponse.of(Map.of("stage", ops.dispatch(id)));
+    }
+
+    @PostMapping("/orders/{id}/deliver")
+    public ApiResponse<Map<String, String>> deliver(@PathVariable java.util.UUID id) {
+        return ApiResponse.of(Map.of("stage", ops.deliver(id)));
+    }
 }

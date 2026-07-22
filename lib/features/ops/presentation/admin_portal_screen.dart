@@ -36,8 +36,8 @@ const List<_NavItem> _nav = <_NavItem>[
   _NavItem(_Section.cutoff, 'Order Cutoff', Icons.lock_clock_outlined),
   _NavItem(_Section.purchase, 'Market Purchase', Icons.shopping_cart_outlined),
   _NavItem(_Section.capture, 'Price Capture', Icons.price_change_outlined),
-  _NavItem(_Section.packing, 'Packing', Icons.inventory_2_outlined, ready: false),
-  _NavItem(_Section.delivery, 'Delivery', Icons.local_shipping_outlined, ready: false),
+  _NavItem(_Section.packing, 'Packing', Icons.inventory_2_outlined),
+  _NavItem(_Section.delivery, 'Delivery', Icons.local_shipping_outlined),
   _NavItem(_Section.reports, 'Reports', Icons.bar_chart_outlined, ready: false),
   _NavItem(_Section.settings, 'Settings', Icons.settings_outlined, ready: false),
 ];
@@ -59,6 +59,8 @@ class _AdminPortalScreenState extends ConsumerState<AdminPortalScreen> {
     ref.invalidate(opsSummaryProvider);
     ref.invalidate(purchaseListProvider);
     ref.invalidate(cutoffProvider);
+    ref.invalidate(packingProvider);
+    ref.invalidate(deliveryProvider);
   }
 
   void _exit() {
@@ -232,11 +234,9 @@ class _AdminPortalScreenState extends ConsumerState<AdminPortalScreen> {
       case _Section.capture:
         return _captureSection();
       case _Section.packing:
-        return _placeholder('Packing', Icons.inventory_2_outlined,
-            'Household packing waves by apartment, route and delivery window. Needs the packing/route backend (Vol2A §7.4) — not built yet.');
+        return _packingSection();
       case _Section.delivery:
-        return _placeholder('Delivery', Icons.local_shipping_outlined,
-            'Route batches, apartment drops and proof of delivery. Needs the delivery backend (Vol1 §14) — not built yet.');
+        return _deliverySection();
       case _Section.reports:
         return _placeholder('Reports', Icons.bar_chart_outlined,
             'Fill rate, variance, on-time delivery and reconciliation reports. Needs the reporting backend — not built yet.');
@@ -504,6 +504,160 @@ class _AdminPortalScreenState extends ConsumerState<AdminPortalScreen> {
             ),
           ),
         ),
+      ]),
+    );
+  }
+
+  // --- Packing ----------------------------------------------------------------
+  Future<void> _fulfill(String action, String orderId) async {
+    setState(() => _busy = true);
+    try {
+      final repo = ref.read(opsRepositoryProvider);
+      switch (action) {
+        case 'pack':
+          await repo.pack(orderId);
+          _snack('Marked packed');
+        case 'dispatch':
+          await repo.dispatch(orderId);
+          _snack('Out for delivery — customer notified');
+        case 'deliver':
+          await repo.deliver(orderId);
+          _snack('Delivered — customer notified');
+      }
+      _refresh();
+    } on ApiFailure catch (f) {
+      _snack(f.userMessage, error: true);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Widget _packingSection() {
+    final async = ref.watch(packingProvider);
+    return _scroll(child: async.when(
+      loading: _loading,
+      error: _error,
+      data: (p) {
+        if (p.total == 0) {
+          return const NsCard(child: EmptyState(
+            icon: Icons.inventory_2_outlined,
+            title: 'Nothing to pack yet',
+            message: 'Paid orders appear here as packing waves grouped by community once the Sunday settlement completes.',
+          ));
+        }
+        return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: <Widget>[
+          Wrap(spacing: Gap.md, runSpacing: Gap.md, children: <Widget>[
+            _tile('Orders', '${p.total}', Icons.receipt_long, AppColors.forest),
+            _tile('Pending', '${p.pending}', Icons.inbox, AppColors.warning),
+            _tile('Packing', '${p.packing}', Icons.inventory_2_outlined, AppColors.info),
+            _tile('Packed', '${p.packed}', Icons.check_circle, AppColors.success),
+          ]),
+          const SizedBox(height: Gap.lg),
+          const SectionHeader(title: 'Packing waves'),
+          for (final w in p.waves) _packingWave(w),
+          const SizedBox(height: Gap.section),
+        ]);
+      },
+    ));
+  }
+
+  Widget _packingWave(PackingWave w) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Gap.md),
+      child: NsCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: <Widget>[
+        Row(children: <Widget>[
+          const Icon(Icons.apartment, size: 18, color: AppColors.forest),
+          const SizedBox(width: Gap.sm),
+          Expanded(child: Text(w.community, style: Theme.of(context).textTheme.titleMedium)),
+          Text('${w.packed}/${w.total} packed',
+              style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+        ]),
+        const SizedBox(height: Gap.sm),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(Radii.pill),
+          child: LinearProgressIndicator(
+            value: w.progress, minHeight: 6,
+            backgroundColor: AppColors.surfaceMuted, color: AppColors.forest,
+          ),
+        ),
+        const SizedBox(height: Gap.sm),
+        for (final o in w.orders)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(children: <Widget>[
+              Expanded(child: Text('${o.ref} · ${o.slot ?? ''}',
+                  style: const TextStyle(fontSize: 13))),
+              if (o.stage == 'PENDING' || o.stage == 'PACKING')
+                OutlinedButton(
+                  onPressed: _busy ? null : () => _fulfill('pack', o.orderId),
+                  style: OutlinedButton.styleFrom(
+                      visualDensity: VisualDensity.compact, padding: const EdgeInsets.symmetric(horizontal: Gap.md)),
+                  child: const Text('Pack'),
+                )
+              else
+                StatusChip(label: o.stage.replaceAll('_', ' '), color: AppColors.success),
+            ]),
+          ),
+      ])),
+    );
+  }
+
+  // --- Delivery ---------------------------------------------------------------
+  Widget _deliverySection() {
+    final async = ref.watch(deliveryProvider);
+    return _scroll(child: async.when(
+      loading: _loading,
+      error: _error,
+      data: (d) => Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: <Widget>[
+        Wrap(spacing: Gap.md, runSpacing: Gap.md, children: <Widget>[
+          _tile('Ready to dispatch', '${d.readyToDispatch}', Icons.local_shipping_outlined, AppColors.info),
+          _tile('Out for delivery', '${d.outForDelivery}', Icons.directions_bike, AppColors.warning),
+          _tile('Delivered', '${d.delivered}', Icons.check_circle, AppColors.success),
+        ]),
+        const SizedBox(height: Gap.lg),
+        const SectionHeader(title: 'Delivery queue'),
+        if (d.orders.isEmpty)
+          const NsCard(child: EmptyState(
+            icon: Icons.local_shipping_outlined,
+            title: 'No orders in the delivery queue',
+            message: 'Packed orders appear here to dispatch and mark delivered.',
+          ))
+        else
+          NsCard(padding: const EdgeInsets.symmetric(vertical: Gap.sm), child: Column(children: <Widget>[
+            for (int i = 0; i < d.orders.length; i++) ...<Widget>[
+              if (i > 0) const Divider(height: 1, color: AppColors.border),
+              _deliveryRow(d.orders[i]),
+            ],
+          ])),
+        const SizedBox(height: Gap.section),
+      ]),
+    ));
+  }
+
+  Widget _deliveryRow(FulfillmentOrder o) {
+    final out = o.stage == 'OUT_FOR_DELIVERY';
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: Gap.lg, vertical: Gap.md),
+      child: Row(children: <Widget>[
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: <Widget>[
+          Text(o.ref, style: Theme.of(context).textTheme.titleSmall),
+          const SizedBox(height: 2),
+          Text('${o.community} · ${o.slot ?? ''}',
+              style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+        ])),
+        if (out)
+          FilledButton(
+            onPressed: _busy ? null : () => _fulfill('deliver', o.orderId),
+            style: FilledButton.styleFrom(
+                backgroundColor: AppColors.forest, visualDensity: VisualDensity.compact),
+            child: const Text('Mark delivered'),
+          )
+        else
+          OutlinedButton(
+            onPressed: _busy ? null : () => _fulfill('dispatch', o.orderId),
+            style: OutlinedButton.styleFrom(visualDensity: VisualDensity.compact),
+            child: const Text('Dispatch'),
+          ),
       ]),
     );
   }

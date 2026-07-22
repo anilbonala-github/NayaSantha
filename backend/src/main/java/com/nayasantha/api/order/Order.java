@@ -46,5 +46,13 @@ public class Order extends BaseEntity {
     @Column(name = "locked_at")
     private Instant lockedAt;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "fulfillment_stage", nullable = false)
+    private FulfillmentStage fulfillmentStage = FulfillmentStage.PENDING;
+
+    @Column(name = "community")
+    private String community;
+
     public enum Status { CONFIRMED, LOCKED, PURCHASING, FINALIZED, AWAITING_APPROVAL, PAID, DELIVERED, CANCELLED }
+    public enum FulfillmentStage { PENDING, PACKING, PACKED, OUT_FOR_DELIVERY, DELIVERED }
 }

@@ -21,6 +21,8 @@ public class NotificationService {
     public static final String PRICE_EXCEPTION = "PRICE_EXCEPTION";
     public static final String PAYMENT_COMPLETE = "PAYMENT_COMPLETE";
     public static final String CUTOFF_REMINDER = "CUTOFF_REMINDER";
+    public static final String OUT_FOR_DELIVERY = "OUT_FOR_DELIVERY";
+    public static final String DELIVERED = "DELIVERED";
 
     private final NotificationRepository repo;
 

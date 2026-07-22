@@ -125,6 +125,99 @@ class Cutoff {
       );
 }
 
+class FulfillmentOrder {
+  const FulfillmentOrder({
+    required this.orderId,
+    required this.ref,
+    required this.community,
+    this.slot,
+    required this.stage,
+    this.finalTotal,
+  });
+
+  final String orderId;
+  final String ref;
+  final String community;
+  final String? slot;
+  final String stage; // PENDING | PACKING | PACKED | OUT_FOR_DELIVERY | DELIVERED
+  final double? finalTotal;
+
+  factory FulfillmentOrder.fromJson(Map<String, dynamic> j) => FulfillmentOrder(
+        orderId: j['orderId'] as String,
+        ref: j['ref'] as String,
+        community: j['community'] as String? ?? 'Unassigned',
+        slot: j['slot'] as String?,
+        stage: j['stage'] as String? ?? 'PENDING',
+        finalTotal: j['finalTotal'] == null ? null : _d(j['finalTotal']),
+      );
+}
+
+class PackingWave {
+  const PackingWave({required this.community, required this.total, required this.packed, required this.orders});
+  final String community;
+  final int total;
+  final int packed;
+  final List<FulfillmentOrder> orders;
+
+  double get progress => total == 0 ? 0 : packed / total;
+
+  factory PackingWave.fromJson(Map<String, dynamic> j) => PackingWave(
+        community: j['community'] as String? ?? 'Unassigned',
+        total: (j['total'] as num).toInt(),
+        packed: (j['packed'] as num).toInt(),
+        orders: ((j['orders'] as List?) ?? const [])
+            .map((e) => FulfillmentOrder.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
+}
+
+class PackingSummary {
+  const PackingSummary({
+    required this.total,
+    required this.pending,
+    required this.packing,
+    required this.packed,
+    required this.waves,
+  });
+  final int total;
+  final int pending;
+  final int packing;
+  final int packed;
+  final List<PackingWave> waves;
+
+  factory PackingSummary.fromJson(Map<String, dynamic> j) => PackingSummary(
+        total: (j['total'] as num).toInt(),
+        pending: (j['pending'] as num).toInt(),
+        packing: (j['packing'] as num).toInt(),
+        packed: (j['packed'] as num).toInt(),
+        waves: ((j['waves'] as List?) ?? const [])
+            .map((e) => PackingWave.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
+}
+
+class DeliverySummary {
+  const DeliverySummary({
+    required this.readyToDispatch,
+    required this.outForDelivery,
+    required this.delivered,
+    required this.orders,
+  });
+  final int readyToDispatch;
+  final int outForDelivery;
+  final int delivered;
+  final List<FulfillmentOrder> orders;
+
+  factory DeliverySummary.fromJson(Map<String, dynamic> j) => DeliverySummary(
+        readyToDispatch: (j['readyToDispatch'] as num).toInt(),
+        outForDelivery: (j['outForDelivery'] as num).toInt(),
+        delivered: (j['delivered'] as num).toInt(),
+        orders: ((j['orders'] as List?) ?? const [])
+            .map((e) => FulfillmentOrder.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
+}
+
 class CaptureResult {
   const CaptureResult({required this.weekStart, required this.captured});
   final String weekStart;

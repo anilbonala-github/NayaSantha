@@ -50,6 +50,19 @@ public final class OpsDtos {
 
     public record CutoffExceptionDto(String orderRef, String reason, String type) {}
 
+    // --- fulfillment: packing (Vol2A §7.4) + delivery (Vol1 §14) -----------------
+    public record FulfillmentOrderDto(UUID orderId, String ref, String community, String slot,
+                                      String stage, BigDecimal finalTotal) {}
+
+    public record PackingWaveDto(String community, int total, int packed,
+                                 List<FulfillmentOrderDto> orders) {}
+
+    public record PackingDto(int total, int pending, int packing, int packed,
+                             List<PackingWaveDto> waves) {}
+
+    public record DeliveryDto(int readyToDispatch, int outForDelivery, int delivered,
+                              List<FulfillmentOrderDto> orders) {}
+
     public record PriceEntry(
             @NotNull UUID productId,
             @NotNull @DecimalMin(value = "0.0", inclusive = true) BigDecimal actualRate) {}

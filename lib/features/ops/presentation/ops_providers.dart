@@ -18,3 +18,11 @@ final purchaseListProvider = FutureProvider.autoDispose<List<PurchaseLine>>(
 /// Order-cutoff console: status counts + exceptions queue.
 final cutoffProvider = FutureProvider.autoDispose<Cutoff>(
     (ref) => ref.watch(opsRepositoryProvider).cutoff());
+
+/// Packing dashboard: waves grouped by community.
+final packingProvider = FutureProvider.autoDispose<PackingSummary>(
+    (ref) => ref.watch(opsRepositoryProvider).packing());
+
+/// Delivery dashboard: orders ready to dispatch / out for delivery.
+final deliveryProvider = FutureProvider.autoDispose<DeliverySummary>(
+    (ref) => ref.watch(opsRepositoryProvider).delivery());

@@ -154,6 +154,67 @@ public class OpsService {
         return new FinalizeResultDto(week, locked.size(), finalized, awaiting, total);
     }
 
+    // --- fulfillment: packing + delivery ----------------------------------------
+    private static FulfillmentOrderDto fo(Order o) {
+        return new FulfillmentOrderDto(o.getId(), "NS-" + o.getId().toString().substring(0, 8),
+                o.getCommunity() == null ? "Unassigned" : o.getCommunity(),
+                o.getDeliverySlot(), o.getFulfillmentStage().name(), o.getFinalTotal());
+    }
+
+    @Transactional(readOnly = true)
+    public PackingDto packing() {
+        List<Order> paid = orderService.ordersByStatus(Order.Status.PAID);
+        int pending = 0, packing = 0, packed = 0;
+        Map<String, List<Order>> byCommunity = new LinkedHashMap<>();
+        for (Order o : paid) {
+            switch (o.getFulfillmentStage()) {
+                case PENDING -> pending++;
+                case PACKING -> packing++;
+                default -> packed++;   // PACKED / OUT_FOR_DELIVERY
+            }
+            byCommunity.computeIfAbsent(o.getCommunity() == null ? "Unassigned" : o.getCommunity(),
+                    k -> new ArrayList<>()).add(o);
+        }
+        List<PackingWaveDto> waves = new ArrayList<>();
+        byCommunity.forEach((community, os) -> {
+            int packedCount = (int) os.stream()
+                    .filter(o -> o.getFulfillmentStage() != Order.FulfillmentStage.PENDING
+                            && o.getFulfillmentStage() != Order.FulfillmentStage.PACKING).count();
+            waves.add(new PackingWaveDto(community, os.size(), packedCount,
+                    os.stream().map(OpsService::fo).toList()));
+        });
+        waves.sort(Comparator.comparing(PackingWaveDto::community, String.CASE_INSENSITIVE_ORDER));
+        return new PackingDto(paid.size(), pending, packing, packed, waves);
+    }
+
+    @Transactional(readOnly = true)
+    public DeliveryDto delivery() {
+        List<Order> paid = orderService.ordersByStatus(Order.Status.PAID);
+        int ready = 0, out = 0;
+        List<FulfillmentOrderDto> actionable = new ArrayList<>();
+        for (Order o : paid) {
+            if (o.getFulfillmentStage() == Order.FulfillmentStage.PACKED) { ready++; actionable.add(fo(o)); }
+            else if (o.getFulfillmentStage() == Order.FulfillmentStage.OUT_FOR_DELIVERY) { out++; actionable.add(fo(o)); }
+        }
+        int delivered = orderService.ordersByStatus(Order.Status.DELIVERED).size();
+        return new DeliveryDto(ready, out, delivered, actionable);
+    }
+
+    @Transactional
+    public String pack(java.util.UUID orderId) {
+        return orderService.packOrder(orderId).getFulfillmentStage().name();
+    }
+
+    @Transactional
+    public String dispatch(java.util.UUID orderId) {
+        return orderService.dispatchOrder(orderId).getFulfillmentStage().name();
+    }
+
+    @Transactional
+    public String deliver(java.util.UUID orderId) {
+        return orderService.deliverOrder(orderId).getFulfillmentStage().name();
+    }
+
     /** Mutable per-product accumulator for the consolidated buy list. */
     private static final class Agg {
         final String name;

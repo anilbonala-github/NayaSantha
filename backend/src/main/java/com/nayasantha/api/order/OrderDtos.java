@@ -30,7 +30,7 @@ public final class OrderDtos {
 
     public record OrderDto(UUID id, String status, String pricePreference,
                            BigDecimal estimatedTotal, BigDecimal maximumPayable, BigDecimal finalTotal,
-                           BigDecimal savings, String deliverySlot, String paymentStatus,
+                           BigDecimal savings, String deliverySlot, String fulfillmentStage, String paymentStatus,
                            List<OrderItemDto> items, ExceptionDto exception, Instant createdAt, Long version) {}
 
     public record PriceComparisonLine(String name, int quantity, BigDecimal forecastRate,
