@@ -28,6 +28,9 @@ public class PaymentAuthorization extends BaseEntity {
     @Column(name = "captured_amount")
     private BigDecimal capturedAmount;
 
+    @Column(name = "refunded_amount", nullable = false)
+    private BigDecimal refundedAmount = BigDecimal.ZERO;
+
     private String reference;
 
     @Enumerated(EnumType.STRING)

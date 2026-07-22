@@ -23,6 +23,7 @@ public class NotificationService {
     public static final String CUTOFF_REMINDER = "CUTOFF_REMINDER";
     public static final String OUT_FOR_DELIVERY = "OUT_FOR_DELIVERY";
     public static final String DELIVERED = "DELIVERED";
+    public static final String REFUND_ISSUED = "REFUND_ISSUED";
 
     private final NotificationRepository repo;
 

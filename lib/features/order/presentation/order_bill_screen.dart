@@ -105,6 +105,12 @@ class _OrderBillScreenState extends ConsumerState<OrderBillScreen> {
                               color: o.savings! >= 0 ? AppColors.success : AppColors.textSecondary,
                             ),
                           ),
+                        if (o.hasRefund)
+                          Padding(
+                            padding: const EdgeInsets.only(top: Gap.sm),
+                            child: _row('Refunded', '−₹${o.refundedAmount.toStringAsFixed(0)}',
+                                color: AppColors.info, bold: true),
+                          ),
                       ],
                     ]),
                   ),

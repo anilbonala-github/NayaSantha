@@ -41,12 +41,15 @@ public class OrderService {
     private final ProductRepository products;
     private final com.nayasantha.api.notification.NotificationService notifications;
     private final com.nayasantha.api.address.AddressRepository addresses;
+    private final RefundRepository refunds;
+    private final com.nayasantha.api.payment.PaymentGateway gateway;
 
     public OrderService(OrderRepository orders, OrderItemRepository items, PriceConsentRepository consents,
                         PaymentAuthorizationRepository payments, PriceExceptionRepository exceptions,
                         WeeklyPlanRepository plans, WeeklyPlanItemRepository planItems, ProductRepository products,
                         com.nayasantha.api.notification.NotificationService notifications,
-                        com.nayasantha.api.address.AddressRepository addresses) {
+                        com.nayasantha.api.address.AddressRepository addresses,
+                        RefundRepository refunds, com.nayasantha.api.payment.PaymentGateway gateway) {
         this.orders = orders;
         this.items = items;
         this.consents = consents;
@@ -57,6 +60,8 @@ public class OrderService {
         this.products = products;
         this.notifications = notifications;
         this.addresses = addresses;
+        this.refunds = refunds;
+        this.gateway = gateway;
     }
 
     private static String money(BigDecimal v) {
@@ -125,7 +130,8 @@ public class OrderService {
         PaymentAuthorization auth = new PaymentAuthorization();
         auth.setOrderId(order.getId());
         auth.setAuthorizedAmount(maxPayable);      // authorize the cap; capture only final (Vol2A §14)
-        auth.setReference("auth_" + UUID.randomUUID().toString().substring(0, 12));
+        auth.setProvider(gateway.isLive() ? "GATEWAY" : "SIMULATED");
+        auth.setReference(gateway.authorize(order.getId(), maxPayable));
         payments.save(auth);
 
         plan.setStatus(WeeklyPlan.Status.APPROVED);
@@ -264,6 +270,7 @@ public class OrderService {
         PaymentAuthorization auth = payments.findFirstByOrderIdOrderByCreatedAtDesc(orderId)
                 .orElseThrow(() -> ApiException.notFound("Payment authorization"));
         auth.setCapturedAmount(order.getFinalTotal());          // capture only the final amount
+        auth.setReference(gateway.capture(auth.getReference(), order.getFinalTotal()));
         auth.setStatus(PaymentAuthorization.Status.CAPTURED);
         payments.save(auth);
         order.setStatus(Order.Status.PAID);
@@ -332,6 +339,57 @@ public class OrderService {
                 "Your order was delivered. Your final invoice and savings summary are ready.",
                 o.getId());
         return o;
+    }
+
+    // --- refunds (Vol2A FR-015, §14) ----------------------------------------------
+    @Transactional
+    public RefundDto refund(UUID orderId, String type, String reason, BigDecimal amount) {
+        Order order = requireOrder(orderId);
+        try {
+            Refund.Type.valueOf(type);
+        } catch (Exception e) {
+            throw new ApiException(ErrorCode.VALIDATION_ERROR, "Unknown refund type");
+        }
+        PaymentAuthorization auth = payments.findFirstByOrderIdOrderByCreatedAtDesc(orderId)
+                .orElseThrow(() -> ApiException.notFound("Payment"));
+        if (auth.getCapturedAmount() == null || auth.getCapturedAmount().signum() <= 0) {
+            throw new ApiException(ErrorCode.VALIDATION_ERROR, "Nothing has been captured to refund");
+        }
+        BigDecimal already = auth.getRefundedAmount() == null ? BigDecimal.ZERO : auth.getRefundedAmount();
+        BigDecimal refundable = auth.getCapturedAmount().subtract(already);
+        if (amount == null || amount.signum() <= 0) {
+            throw new ApiException(ErrorCode.VALIDATION_ERROR, "Refund amount must be positive");
+        }
+        if (amount.compareTo(refundable) > 0) {
+            throw new ApiException(ErrorCode.VALIDATION_ERROR, "Refund exceeds refundable amount " + money(refundable));
+        }
+
+        String ref = gateway.refund(auth.getReference(), amount);
+        Refund r = new Refund();
+        r.setOrderId(orderId);
+        r.setAmount(amount);
+        r.setType(type);
+        r.setReason(reason);
+        r.setReference(ref);
+        r.setStatus("PROCESSED");
+        r.setCreatedAt(Instant.now());
+        refunds.save(r);
+
+        BigDecimal newRefunded = already.add(amount);
+        auth.setRefundedAmount(newRefunded);
+        if (newRefunded.compareTo(auth.getCapturedAmount()) >= 0) {
+            auth.setStatus(PaymentAuthorization.Status.REFUNDED);
+        }
+        payments.save(auth);
+
+        notifications.create(order.getUserId(),
+                com.nayasantha.api.notification.NotificationService.REFUND_ISSUED,
+                "Refund issued",
+                money(amount) + " has been refunded"
+                        + (reason != null && !reason.isBlank() ? " (" + reason + ")" : "")
+                        + ". Reference " + ref + ".",
+                orderId);
+        return new RefundDto(r.getId(), amount, type, reason, ref, r.getStatus(), r.getCreatedAt());
     }
 
     @Transactional(readOnly = true)
@@ -426,9 +484,14 @@ public class OrderService {
         }
         BigDecimal savings = order.getFinalTotal() == null ? null
                 : order.getEstimatedTotal().subtract(order.getFinalTotal());
+        BigDecimal refundedAmount = payments.findFirstByOrderIdOrderByCreatedAtDesc(order.getId())
+                .map(PaymentAuthorization::getRefundedAmount).orElse(BigDecimal.ZERO);
+        List<RefundDto> refundDtos = refunds.findByOrderIdOrderByCreatedAtDesc(order.getId()).stream()
+                .map(r -> new RefundDto(r.getId(), r.getAmount(), r.getType(), r.getReason(),
+                        r.getReference(), r.getStatus(), r.getCreatedAt())).toList();
         return new OrderDto(order.getId(), order.getStatus().name(), order.getPricePreference(),
                 order.getEstimatedTotal(), order.getMaximumPayable(), order.getFinalTotal(), savings,
                 order.getDeliverySlot(), order.getFulfillmentStage().name(), paymentStatus, itemDtos, exDto,
-                order.getCreatedAt(), order.getVersion());
+                order.getCreatedAt(), order.getVersion(), refundedAmount, refundDtos);
     }
 }

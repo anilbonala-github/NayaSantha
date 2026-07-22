@@ -97,6 +97,19 @@ class OpsRepository {
   Future<void> dispatch(String orderId) => _act('/ops/orders/$orderId/dispatch');
   Future<void> deliver(String orderId) => _act('/ops/orders/$orderId/deliver');
 
+  Future<void> refund(String orderId,
+      {required String type, required double amount, String? reason}) async {
+    try {
+      await _client.post('/ops/orders/$orderId/refund', body: {
+        'type': type,
+        'amount': amount,
+        if (reason != null && reason.isNotEmpty) 'reason': reason,
+      });
+    } on DioException catch (e) {
+      throw ApiFailure.fromDio(e);
+    }
+  }
+
   Future<void> _act(String path) async {
     try {
       await _client.post(path);

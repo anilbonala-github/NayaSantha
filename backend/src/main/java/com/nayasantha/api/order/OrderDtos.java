@@ -31,7 +31,11 @@ public final class OrderDtos {
     public record OrderDto(UUID id, String status, String pricePreference,
                            BigDecimal estimatedTotal, BigDecimal maximumPayable, BigDecimal finalTotal,
                            BigDecimal savings, String deliverySlot, String fulfillmentStage, String paymentStatus,
-                           List<OrderItemDto> items, ExceptionDto exception, Instant createdAt, Long version) {}
+                           List<OrderItemDto> items, ExceptionDto exception, Instant createdAt, Long version,
+                           BigDecimal refundedAmount, List<RefundDto> refunds) {}
+
+    public record RefundDto(UUID id, BigDecimal amount, String type, String reason,
+                            String reference, String status, Instant createdAt) {}
 
     public record PriceComparisonLine(String name, int quantity, BigDecimal forecastRate,
                                       BigDecimal actualRate, BigDecimal estimatedAmount,

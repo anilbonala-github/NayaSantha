@@ -196,8 +196,10 @@ public class OpsService {
             if (o.getFulfillmentStage() == Order.FulfillmentStage.PACKED) { ready++; actionable.add(fo(o)); }
             else if (o.getFulfillmentStage() == Order.FulfillmentStage.OUT_FOR_DELIVERY) { out++; actionable.add(fo(o)); }
         }
-        int delivered = orderService.ordersByStatus(Order.Status.DELIVERED).size();
-        return new DeliveryDto(ready, out, delivered, actionable);
+        // Include delivered orders too, so quality-claim refunds have a UI entry.
+        List<Order> deliveredOrders = orderService.ordersByStatus(Order.Status.DELIVERED);
+        for (Order o : deliveredOrders) actionable.add(fo(o));
+        return new DeliveryDto(ready, out, deliveredOrders.size(), actionable);
     }
 
     @Transactional
@@ -213,6 +215,11 @@ public class OpsService {
     @Transactional
     public String deliver(java.util.UUID orderId) {
         return orderService.deliverOrder(orderId).getFulfillmentStage().name();
+    }
+
+    @Transactional
+    public com.nayasantha.api.order.OrderDtos.RefundDto refund(java.util.UUID orderId, RefundRequest req) {
+        return orderService.refund(orderId, req.type(), req.reason(), req.amount());
     }
 
     /** Mutable per-product accumulator for the consolidated buy list. */

@@ -27,3 +27,7 @@ interface PaymentAuthorizationRepository extends JpaRepository<PaymentAuthorizat
 interface PriceExceptionRepository extends JpaRepository<PriceException, UUID> {
     Optional<PriceException> findFirstByOrderIdOrderByCreatedAtDesc(UUID orderId);
 }
+
+interface RefundRepository extends JpaRepository<Refund, UUID> {
+    List<Refund> findByOrderIdOrderByCreatedAtDesc(UUID orderId);
+}

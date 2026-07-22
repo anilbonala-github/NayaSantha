@@ -635,31 +635,101 @@ class _AdminPortalScreenState extends ConsumerState<AdminPortalScreen> {
   }
 
   Widget _deliveryRow(FulfillmentOrder o) {
-    final out = o.stage == 'OUT_FOR_DELIVERY';
+    Widget? primary;
+    if (o.stage == 'PACKED') {
+      primary = OutlinedButton(
+        onPressed: _busy ? null : () => _fulfill('dispatch', o.orderId),
+        style: OutlinedButton.styleFrom(visualDensity: VisualDensity.compact),
+        child: const Text('Dispatch'),
+      );
+    } else if (o.stage == 'OUT_FOR_DELIVERY') {
+      primary = FilledButton(
+        onPressed: _busy ? null : () => _fulfill('deliver', o.orderId),
+        style: FilledButton.styleFrom(
+            backgroundColor: AppColors.forest, visualDensity: VisualDensity.compact),
+        child: const Text('Mark delivered'),
+      );
+    }
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: Gap.lg, vertical: Gap.md),
       child: Row(children: <Widget>[
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: <Widget>[
-          Text(o.ref, style: Theme.of(context).textTheme.titleSmall),
+          Row(children: <Widget>[
+            Text(o.ref, style: Theme.of(context).textTheme.titleSmall),
+            const SizedBox(width: Gap.sm),
+            StatusChip(
+              label: o.stage.replaceAll('_', ' '),
+              color: o.stage == 'DELIVERED' ? AppColors.success : AppColors.textSecondary,
+            ),
+          ]),
           const SizedBox(height: 2),
           Text('${o.community} · ${o.slot ?? ''}',
               style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
         ])),
-        if (out)
-          FilledButton(
-            onPressed: _busy ? null : () => _fulfill('deliver', o.orderId),
-            style: FilledButton.styleFrom(
-                backgroundColor: AppColors.forest, visualDensity: VisualDensity.compact),
-            child: const Text('Mark delivered'),
-          )
-        else
-          OutlinedButton(
-            onPressed: _busy ? null : () => _fulfill('dispatch', o.orderId),
-            style: OutlinedButton.styleFrom(visualDensity: VisualDensity.compact),
-            child: const Text('Dispatch'),
-          ),
+        TextButton(
+          onPressed: _busy ? null : () => _showRefundDialog(o),
+          child: const Text('Refund', style: TextStyle(color: AppColors.danger)),
+        ),
+        if (primary != null) primary,
       ]),
     );
+  }
+
+  Future<void> _showRefundDialog(FulfillmentOrder o) async {
+    final amountCtrl = TextEditingController(text: o.finalTotal?.toStringAsFixed(2) ?? '');
+    final reasonCtrl = TextEditingController();
+    String type = 'QUALITY_CLAIM';
+    const types = <String>['QUALITY_CLAIM', 'MISSING_ITEM', 'CANCELLATION', 'GOODWILL'];
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(builder: (ctx, setD) => AlertDialog(
+        title: Text('Refund ${o.ref}'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: <Widget>[
+          TextField(
+            controller: amountCtrl,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: <TextInputFormatter>[FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
+            decoration: const InputDecoration(prefixText: '₹ ', labelText: 'Refund amount'),
+          ),
+          const SizedBox(height: Gap.md),
+          DropdownButtonFormField<String>(
+            initialValue: type,
+            decoration: const InputDecoration(labelText: 'Reason type'),
+            items: types.map((t) => DropdownMenuItem<String>(
+                value: t, child: Text(t.replaceAll('_', ' ')))).toList(),
+            onChanged: (v) => setD(() => type = v ?? 'QUALITY_CLAIM'),
+          ),
+          const SizedBox(height: Gap.md),
+          TextField(controller: reasonCtrl,
+              decoration: const InputDecoration(labelText: 'Note (optional)')),
+        ]),
+        actions: <Widget>[
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
+            child: const Text('Issue refund'),
+          ),
+        ],
+      )),
+    );
+    if (ok != true) return;
+    final amt = double.tryParse(amountCtrl.text.trim());
+    if (amt == null || amt <= 0) {
+      _snack('Enter a valid refund amount', error: true);
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      await ref.read(opsRepositoryProvider).refund(o.orderId,
+          type: type, amount: amt, reason: reasonCtrl.text.trim());
+      _snack('Refunded ${money(amt)} — customer notified');
+      _refresh();
+    } on ApiFailure catch (f) {
+      _snack(f.userMessage, error: true);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   // --- shared bits ------------------------------------------------------------

@@ -10,7 +10,9 @@ class CustomerOrder {
     this.finalTotal,
     this.savings,
     this.deliverySlot,
+    this.fulfillmentStage,
     this.paymentStatus,
+    this.refundedAmount = 0,
     this.items = const <OrderLine>[],
     this.exception,
   });
@@ -23,12 +25,15 @@ class CustomerOrder {
   final double? finalTotal;
   final double? savings;
   final String? deliverySlot;
+  final String? fulfillmentStage;
   final String? paymentStatus;
+  final double refundedAmount;
   final List<OrderLine> items;
   final OrderException? exception;
 
   bool get awaitingApproval => status == 'AWAITING_APPROVAL';
   bool get isPaid => status == 'PAID';
+  bool get hasRefund => refundedAmount > 0;
 
   static double? _d(dynamic v) => v == null ? null : (v as num).toDouble();
 
@@ -41,7 +46,9 @@ class CustomerOrder {
         finalTotal: _d(j['finalTotal']),
         savings: _d(j['savings']),
         deliverySlot: j['deliverySlot'] as String?,
+        fulfillmentStage: j['fulfillmentStage'] as String?,
         paymentStatus: j['paymentStatus'] as String?,
+        refundedAmount: _d(j['refundedAmount']) ?? 0,
         items: (j['items'] as List?)
                 ?.map((e) => OrderLine.fromJson(e as Map<String, dynamic>))
                 .toList() ??

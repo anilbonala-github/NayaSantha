@@ -96,4 +96,11 @@ public class OpsController {
     public ApiResponse<Map<String, String>> deliver(@PathVariable java.util.UUID id) {
         return ApiResponse.of(Map.of("stage", ops.deliver(id)));
     }
+
+    /** Issue a refund against a captured order (missing item, quality claim, cancellation). */
+    @PostMapping("/orders/{id}/refund")
+    public ApiResponse<com.nayasantha.api.order.OrderDtos.RefundDto> refund(
+            @PathVariable java.util.UUID id, @Valid @RequestBody RefundRequest body) {
+        return ApiResponse.of(ops.refund(id, body));
+    }
 }

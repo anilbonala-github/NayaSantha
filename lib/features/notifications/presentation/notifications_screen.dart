@@ -99,6 +99,7 @@ class _NotificationTile extends StatelessWidget {
     'CUTOFF_REMINDER': (Icons.alarm, AppColors.carrot),
     'OUT_FOR_DELIVERY': (Icons.directions_bike, AppColors.info),
     'DELIVERED': (Icons.inventory_2_outlined, AppColors.forest),
+    'REFUND_ISSUED': (Icons.currency_rupee, AppColors.info),
   };
 
   @override

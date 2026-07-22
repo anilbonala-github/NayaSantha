@@ -63,6 +63,11 @@ public final class OpsDtos {
     public record DeliveryDto(int readyToDispatch, int outForDelivery, int delivered,
                               List<FulfillmentOrderDto> orders) {}
 
+    public record RefundRequest(
+            @NotNull String type,                       // CANCELLATION | MISSING_ITEM | QUALITY_CLAIM | GOODWILL
+            String reason,
+            @NotNull @DecimalMin(value = "0.01") BigDecimal amount) {}
+
     public record PriceEntry(
             @NotNull UUID productId,
             @NotNull @DecimalMin(value = "0.0", inclusive = true) BigDecimal actualRate) {}
