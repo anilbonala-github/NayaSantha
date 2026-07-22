@@ -9,6 +9,7 @@ public class AppProperties {
     private Jwt jwt = new Jwt();
     private Otp otp = new Otp();
     private Gemini gemini = new Gemini();
+    private Payments payments = new Payments();
     private java.util.List<String> adminMobiles = new java.util.ArrayList<>();
 
     public java.util.List<String> getAdminMobiles() { return adminMobiles; }
@@ -20,6 +21,28 @@ public class AppProperties {
     public void setOtp(Otp otp) { this.otp = otp; }
     public Gemini getGemini() { return gemini; }
     public void setGemini(Gemini gemini) { this.gemini = gemini; }
+    public Payments getPayments() { return payments; }
+    public void setPayments(Payments payments) { this.payments = payments; }
+
+    /** Payment gateway config. When razorpay.enabled=true + keys set, the real
+     *  RazorpayGateway replaces the simulator (Vol2A §14). */
+    public static class Payments {
+        private Razorpay razorpay = new Razorpay();
+        public Razorpay getRazorpay() { return razorpay; }
+        public void setRazorpay(Razorpay razorpay) { this.razorpay = razorpay; }
+
+        public static class Razorpay {
+            private boolean enabled = false;
+            private String keyId = "";
+            private String keySecret = "";
+            public boolean isEnabled() { return enabled; }
+            public void setEnabled(boolean enabled) { this.enabled = enabled; }
+            public String getKeyId() { return keyId; }
+            public void setKeyId(String keyId) { this.keyId = keyId; }
+            public String getKeySecret() { return keySecret; }
+            public void setKeySecret(String keySecret) { this.keySecret = keySecret; }
+        }
+    }
 
     /** Google Gemini for weekly-plan recommendations (Vol2 §10). Empty apiKey =>
      *  deterministic fallback planner runs instead. */

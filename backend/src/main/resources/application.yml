@@ -47,6 +47,12 @@ nayasantha:
     dev-code: ${OTP_DEV_CODE:000000}
     length: 6
     ttl-seconds: 300
+  payments:
+    razorpay:
+      # Real gateway (Vol2A §14). false => simulated payments. Use TEST keys first.
+      enabled: ${RAZORPAY_ENABLED:false}
+      key-id: ${RAZORPAY_KEY_ID:}
+      key-secret: ${RAZORPAY_KEY_SECRET:}
   gemini:
     # Empty key => deterministic fallback planner. Set GEMINI_API_KEY to enable.
     api-key: ${GEMINI_API_KEY:}
