@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../features/basket/presentation/basket_providers.dart';
+import '../../features/notifications/presentation/notification_providers.dart';
 import '../../state/app_state.dart';
 import '../router/routes.dart';
 import '../theme/app_colors.dart';
@@ -207,7 +208,14 @@ class _WideShell extends ConsumerWidget {
           Expanded(
             child: Column(
               children: <Widget>[
-                _TopBar(app: app, basketCount: basketCount),
+                _TopBar(
+                  app: app,
+                  basketCount: basketCount,
+                  unreadCount: ref.watch(unreadCountProvider).maybeWhen(
+                        data: (int n) => n,
+                        orElse: () => 0,
+                      ),
+                ),
                 Expanded(child: child),
               ],
             ),
@@ -219,10 +227,11 @@ class _WideShell extends ConsumerWidget {
 }
 
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.app, required this.basketCount});
+  const _TopBar({required this.app, required this.basketCount, required this.unreadCount});
 
   final AppState app;
   final int basketCount;
+  final int unreadCount;
 
   @override
   Widget build(BuildContext context) {
@@ -274,7 +283,7 @@ class _TopBar extends StatelessWidget {
           const SizedBox(width: Gap.lg),
           _IconBadge(
             icon: Icons.notifications_none,
-            count: app.unreadCount,
+            count: unreadCount,
             onTap: () => context.go(Routes.notifications),
           ),
           const SizedBox(width: Gap.sm),

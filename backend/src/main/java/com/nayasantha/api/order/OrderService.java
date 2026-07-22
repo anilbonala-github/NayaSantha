@@ -39,10 +39,12 @@ public class OrderService {
     private final WeeklyPlanRepository plans;
     private final WeeklyPlanItemRepository planItems;
     private final ProductRepository products;
+    private final com.nayasantha.api.notification.NotificationService notifications;
 
     public OrderService(OrderRepository orders, OrderItemRepository items, PriceConsentRepository consents,
                         PaymentAuthorizationRepository payments, PriceExceptionRepository exceptions,
-                        WeeklyPlanRepository plans, WeeklyPlanItemRepository planItems, ProductRepository products) {
+                        WeeklyPlanRepository plans, WeeklyPlanItemRepository planItems, ProductRepository products,
+                        com.nayasantha.api.notification.NotificationService notifications) {
         this.orders = orders;
         this.items = items;
         this.consents = consents;
@@ -51,6 +53,11 @@ public class OrderService {
         this.plans = plans;
         this.planItems = planItems;
         this.products = products;
+        this.notifications = notifications;
+    }
+
+    private static String money(BigDecimal v) {
+        return v == null ? "₹0" : String.format("₹%,.0f", v);
     }
 
     // --- 1. Approve (before Saturday cutoff): consent + order + authorization -----
@@ -109,6 +116,13 @@ public class OrderService {
 
         plan.setStatus(WeeklyPlan.Status.APPROVED);
         plans.save(plan);
+
+        notifications.create(userId,
+                com.nayasantha.api.notification.NotificationService.ORDER_CONFIRMED,
+                "Order confirmed",
+                "Your weekly order is locked. You'll never be charged more than "
+                        + money(maxPayable) + " without your approval.",
+                order.getId());
         return toDto(order);
     }
 
@@ -138,10 +152,25 @@ public class OrderService {
     @Transactional
     public OrderDto settleWithCapturedRates(UUID orderId, Map<UUID, BigDecimal> ratesByProduct) {
         Order order = orders.findById(orderId).orElseThrow(() -> ApiException.notFound("Order"));
-        return settle(order, oi -> {
+        OrderDto dto = settle(order, oi -> {
             BigDecimal r = oi.getProductId() == null ? null : ratesByProduct.get(oi.getProductId());
             return (r != null ? r : oi.getForecastRate()).setScale(2, RoundingMode.HALF_UP);
         });
+        if ("FINALIZED".equals(dto.status())) {
+            String body = "Market purchase complete. Final total " + money(dto.finalTotal())
+                    + (dto.savings() != null && dto.savings().signum() > 0
+                        ? " — you saved " + money(dto.savings()) + "." : ".");
+            notifications.create(order.getUserId(),
+                    com.nayasantha.api.notification.NotificationService.MARKET_UPDATE,
+                    "Sunday market update", body, order.getId());
+        } else if ("AWAITING_APPROVAL".equals(dto.status())) {
+            notifications.create(order.getUserId(),
+                    com.nayasantha.api.notification.NotificationService.PRICE_EXCEPTION,
+                    "Your approval is needed",
+                    "Sunday prices pushed your basket above your maximum. Choose an option before delivery.",
+                    order.getId());
+        }
+        return dto;
     }
 
     /** Shared settlement core: apply per-line actual rates, then enforce the cap (Vol2A). */
@@ -224,7 +253,13 @@ public class OrderService {
         auth.setStatus(PaymentAuthorization.Status.CAPTURED);
         payments.save(auth);
         order.setStatus(Order.Status.PAID);
-        return toDto(orders.save(order));
+        Order saved = orders.save(order);
+        notifications.create(order.getUserId(),
+                com.nayasantha.api.notification.NotificationService.PAYMENT_COMPLETE,
+                "Payment complete",
+                money(order.getFinalTotal()) + " charged. Your final invoice and savings summary are ready.",
+                order.getId());
+        return toDto(saved);
     }
 
     // --- ops gateway (Vol3): expose order data to the ops module without leaking repos --
