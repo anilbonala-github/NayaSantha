@@ -397,6 +397,34 @@ public class OrderService {
         return items.findByOrderId(orderId);
     }
 
+    /**
+     * Mark an order paid after a verified Razorpay checkout. Captures the final
+     * amount against the real payment id (used by refunds). Idempotent.
+     */
+    @Transactional
+    public OrderDto markPaidExternally(UUID userId, UUID orderId, String gatewayPaymentId) {
+        Order order = owned(userId, orderId);
+        if (order.getStatus() == Order.Status.PAID) return toDto(order);   // idempotent
+        if (order.getStatus() != Order.Status.FINALIZED) {
+            throw new ApiException(ErrorCode.VALIDATION_ERROR, "Order is not ready for payment");
+        }
+        PaymentAuthorization auth = payments.findFirstByOrderIdOrderByCreatedAtDesc(orderId)
+                .orElseThrow(() -> ApiException.notFound("Payment authorization"));
+        auth.setCapturedAmount(order.getFinalTotal());
+        auth.setProvider("RAZORPAY");
+        auth.setReference(gatewayPaymentId);
+        auth.setStatus(PaymentAuthorization.Status.CAPTURED);
+        payments.save(auth);
+        order.setStatus(Order.Status.PAID);
+        Order saved = orders.save(order);
+        notifications.create(order.getUserId(),
+                com.nayasantha.api.notification.NotificationService.PAYMENT_COMPLETE,
+                "Payment complete",
+                money(order.getFinalTotal()) + " charged. Your final invoice and savings summary are ready.",
+                order.getId());
+        return toDto(saved);
+    }
+
     // --- reads --------------------------------------------------------------------
     @Transactional(readOnly = true)
     public List<OrderDto> list(UUID userId, int page, int size) {

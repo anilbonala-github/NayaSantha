@@ -5,6 +5,7 @@ import '../../../core/api/api_failure.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/common.dart';
+import '../data/razorpay/razorpay_checkout.dart';
 import '../domain/order_models.dart';
 import 'order_providers.dart';
 
@@ -39,6 +40,52 @@ class _OrderBillScreenState extends ConsumerState<OrderBillScreen> {
     } on ApiFailure catch (f) {
       if (mounted) setState(() { _error = f.userMessage; _busy = false; });
     }
+  }
+
+  /// Pay the final amount. Uses Razorpay Standard Checkout when the backend has it
+  /// configured; otherwise falls back to the simulated capture.
+  Future<void> _payNow(CustomerOrder o) async {
+    final repo = ref.read(orderRepositoryProvider);
+    setState(() { _busy = true; _error = null; });
+    try {
+      final res = await repo.createRazorpayOrder(o.id);
+      if (res['configured'] == false) {
+        final order = await repo.capture(o.id);
+        if (mounted) setState(() { _order = order; _busy = false; });
+        return;
+      }
+      final result = await openRazorpayCheckout(RazorpayOptions(
+        keyId: res['keyId'] as String,
+        razorpayOrderId: res['razorpayOrderId'] as String,
+        amount: (res['amount'] as num).toInt(),
+        currency: (res['currency'] as String?) ?? 'INR',
+        description: (res['description'] as String?) ?? 'Weekly grocery order',
+      ));
+      if (result.success) {
+        await repo.verifyRazorpay(
+          orderId: o.id,
+          razorpayOrderId: result.orderId!,
+          paymentId: result.paymentId!,
+          signature: result.signature!,
+        );
+        final order = await repo.get(o.id);
+        if (mounted) setState(() { _order = order; _busy = false; });
+        _snack('Payment successful');
+      } else {
+        if (mounted) setState(() => _busy = false);
+        _snack(result.cancelled ? 'Payment cancelled' : (result.error ?? 'Payment failed'), error: true);
+      }
+    } on ApiFailure catch (f) {
+      if (mounted) setState(() { _error = f.userMessage; _busy = false; });
+    }
+  }
+
+  void _snack(String msg, {bool error = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg),
+      backgroundColor: error ? AppColors.danger : AppColors.success,
+    ));
   }
 
   @override
@@ -166,7 +213,7 @@ class _OrderBillScreenState extends ConsumerState<OrderBillScreen> {
         ]);
       case 'FINALIZED':
         children.add(FilledButton(
-          onPressed: () => _run(() => repo.capture(o.id)),
+          onPressed: _busy ? null : () => _payNow(o),
           child: Text('Pay final amount · ₹${o.finalTotal!.toStringAsFixed(0)}'),
         ));
       case 'PAID':
