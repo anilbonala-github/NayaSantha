@@ -26,12 +26,14 @@ public class NotificationService {
     public static final String REFUND_ISSUED = "REFUND_ISSUED";
 
     private final NotificationRepository repo;
+    private final com.nayasantha.api.push.PushSender push;
 
-    public NotificationService(NotificationRepository repo) {
+    public NotificationService(NotificationRepository repo, com.nayasantha.api.push.PushSender push) {
         this.repo = repo;
+        this.push = push;
     }
 
-    /** Fire-and-forget create used by the order/settlement lifecycle. */
+    /** Fire-and-forget create used by the order/settlement lifecycle. Also pushes. */
     @Transactional
     public void create(UUID userId, String type, String title, String body, UUID orderId) {
         Notification n = new Notification();
@@ -42,6 +44,11 @@ public class NotificationService {
         n.setOrderId(orderId);
         n.setCreatedAt(Instant.now());
         repo.save(n);
+        try {
+            push.sendToUser(userId, title, body);   // best-effort; never blocks the write
+        } catch (Exception e) {
+            // push failures must not fail the business transaction
+        }
     }
 
     @Transactional(readOnly = true)
