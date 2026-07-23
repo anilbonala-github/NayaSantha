@@ -43,13 +43,15 @@ public class OrderService {
     private final com.nayasantha.api.address.AddressRepository addresses;
     private final RefundRepository refunds;
     private final com.nayasantha.api.payment.PaymentGateway gateway;
+    private final com.nayasantha.api.payment.RazorpayCheckoutService razorpayCheckout;
 
     public OrderService(OrderRepository orders, OrderItemRepository items, PriceConsentRepository consents,
                         PaymentAuthorizationRepository payments, PriceExceptionRepository exceptions,
                         WeeklyPlanRepository plans, WeeklyPlanItemRepository planItems, ProductRepository products,
                         com.nayasantha.api.notification.NotificationService notifications,
                         com.nayasantha.api.address.AddressRepository addresses,
-                        RefundRepository refunds, com.nayasantha.api.payment.PaymentGateway gateway) {
+                        RefundRepository refunds, com.nayasantha.api.payment.PaymentGateway gateway,
+                        com.nayasantha.api.payment.RazorpayCheckoutService razorpayCheckout) {
         this.orders = orders;
         this.items = items;
         this.consents = consents;
@@ -62,6 +64,7 @@ public class OrderService {
         this.addresses = addresses;
         this.refunds = refunds;
         this.gateway = gateway;
+        this.razorpayCheckout = razorpayCheckout;
     }
 
     private static String money(BigDecimal v) {
@@ -364,7 +367,16 @@ public class OrderService {
             throw new ApiException(ErrorCode.VALIDATION_ERROR, "Refund exceeds refundable amount " + money(refundable));
         }
 
-        String ref = gateway.refund(auth.getReference(), amount);
+        // Real Razorpay refund against the stored payment id when paid via Razorpay;
+        // otherwise the simulated gateway.
+        String ref;
+        if ("RAZORPAY".equals(auth.getProvider()) && razorpayCheckout.isConfigured()
+                && auth.getReference() != null && !auth.getReference().isBlank()) {
+            long amountPaise = amount.movePointRight(2).setScale(0, RoundingMode.HALF_UP).longValueExact();
+            ref = razorpayCheckout.refundPayment(auth.getReference(), amountPaise);
+        } else {
+            ref = gateway.refund(auth.getReference(), amount);
+        }
         Refund r = new Refund();
         r.setOrderId(orderId);
         r.setAmount(amount);

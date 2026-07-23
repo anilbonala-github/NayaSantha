@@ -24,6 +24,7 @@ import java.util.Map;
 public class RazorpayCheckoutService {
 
     private static final String ORDERS_URL = "https://api.razorpay.com/v1/orders";
+    private static final String PAYMENTS_URL = "https://api.razorpay.com/v1/payments";
 
     private final RestClient http = RestClient.create();
     private final AppProperties props;
@@ -67,6 +68,23 @@ public class RazorpayCheckoutService {
             }
             throw new ApiException(ErrorCode.INTERNAL_ERROR,
                     "Razorpay order creation failed: " + e.getResponseBodyAsString());
+        }
+    }
+
+    /** Refund {@code amountPaise} against a captured Razorpay payment id. Returns the refund id. */
+    public String refundPayment(String paymentId, long amountPaise) {
+        try {
+            JsonNode res = http.post().uri(PAYMENTS_URL + "/" + paymentId + "/refund")
+                    .header("Authorization", authHeader())
+                    .body(Map.of("amount", amountPaise, "speed", "normal"))
+                    .retrieve().body(JsonNode.class);
+            return res == null ? null : res.path("id").asText();
+        } catch (RestClientResponseException e) {
+            if (e.getStatusCode().value() == 401) {
+                throw new ApiException(ErrorCode.UNAUTHORIZED, "Razorpay authentication failed (check keys)");
+            }
+            throw new ApiException(ErrorCode.VALIDATION_ERROR,
+                    "Razorpay refund failed: " + e.getResponseBodyAsString());
         }
     }
 
