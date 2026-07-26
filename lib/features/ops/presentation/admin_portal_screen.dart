@@ -687,6 +687,7 @@ class _AdminPortalScreenState extends ConsumerState<AdminPortalScreen> {
     final amountCtrl = TextEditingController(text: o.finalTotal?.toStringAsFixed(2) ?? '');
     final reasonCtrl = TextEditingController();
     String type = 'QUALITY_CLAIM';
+    bool toWallet = false;
     const types = <String>['QUALITY_CLAIM', 'MISSING_ITEM', 'CANCELLATION', 'GOODWILL'];
     final ok = await showDialog<bool>(
       context: context,
@@ -710,6 +711,15 @@ class _AdminPortalScreenState extends ConsumerState<AdminPortalScreen> {
           const SizedBox(height: Gap.md),
           TextField(controller: reasonCtrl,
               decoration: const InputDecoration(labelText: 'Note (optional)')),
+          CheckboxListTile(
+            value: toWallet,
+            onChanged: (v) => setD(() => toWallet = v ?? false),
+            contentPadding: EdgeInsets.zero,
+            controlAffinity: ListTileControlAffinity.leading,
+            title: const Text('Credit to customer wallet', style: TextStyle(fontSize: 14)),
+            subtitle: const Text('Instant credit instead of refunding to the payment source',
+                style: TextStyle(fontSize: 11)),
+          ),
         ]),
         actions: <Widget>[
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
@@ -730,8 +740,8 @@ class _AdminPortalScreenState extends ConsumerState<AdminPortalScreen> {
     setState(() => _busy = true);
     try {
       await ref.read(opsRepositoryProvider).refund(o.orderId,
-          type: type, amount: amt, reason: reasonCtrl.text.trim());
-      _snack('Refunded ${money(amt)} — customer notified');
+          type: type, amount: amt, reason: reasonCtrl.text.trim(), toWallet: toWallet);
+      _snack('${toWallet ? 'Credited' : 'Refunded'} ${money(amt)} — customer notified');
       _refresh();
     } on ApiFailure catch (f) {
       _snack(f.userMessage, error: true);

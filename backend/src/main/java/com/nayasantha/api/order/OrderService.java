@@ -45,6 +45,7 @@ public class OrderService {
     private final com.nayasantha.api.payment.PaymentGateway gateway;
     private final com.nayasantha.api.payment.RazorpayCheckoutService razorpayCheckout;
     private final com.nayasantha.api.settings.SettingsService settings;
+    private final com.nayasantha.api.wallet.WalletService wallet;
 
     public OrderService(OrderRepository orders, OrderItemRepository items, PriceConsentRepository consents,
                         PaymentAuthorizationRepository payments, PriceExceptionRepository exceptions,
@@ -53,7 +54,8 @@ public class OrderService {
                         com.nayasantha.api.address.AddressRepository addresses,
                         RefundRepository refunds, com.nayasantha.api.payment.PaymentGateway gateway,
                         com.nayasantha.api.payment.RazorpayCheckoutService razorpayCheckout,
-                        com.nayasantha.api.settings.SettingsService settings) {
+                        com.nayasantha.api.settings.SettingsService settings,
+                        com.nayasantha.api.wallet.WalletService wallet) {
         this.orders = orders;
         this.items = items;
         this.consents = consents;
@@ -68,6 +70,7 @@ public class OrderService {
         this.gateway = gateway;
         this.razorpayCheckout = razorpayCheckout;
         this.settings = settings;
+        this.wallet = wallet;
     }
 
     private static String money(BigDecimal v) {
@@ -389,7 +392,7 @@ public class OrderService {
 
     // --- refunds (Vol2A FR-015, §14) ----------------------------------------------
     @Transactional
-    public RefundDto refund(UUID orderId, String type, String reason, BigDecimal amount) {
+    public RefundDto refund(UUID orderId, String type, String reason, BigDecimal amount, boolean toWallet) {
         Order order = requireOrder(orderId);
         try {
             Refund.Type.valueOf(type);
@@ -410,10 +413,15 @@ public class OrderService {
             throw new ApiException(ErrorCode.VALIDATION_ERROR, "Refund exceeds refundable amount " + money(refundable));
         }
 
-        // Real Razorpay refund against the stored payment id when paid via Razorpay;
-        // otherwise the simulated gateway.
+        // Credit the wallet, or refund to source: real Razorpay against the stored
+        // payment id when paid via Razorpay, otherwise the simulated gateway.
         String ref;
-        if ("RAZORPAY".equals(auth.getProvider()) && razorpayCheckout.isConfigured()
+        if (toWallet) {
+            ref = "wallet_" + wallet.credit(order.getUserId(), amount,
+                    com.nayasantha.api.wallet.WalletTransaction.Type.REFUND,
+                    reason == null || reason.isBlank() ? "Order refund" : reason, orderId)
+                    .getId().toString().substring(0, 8);
+        } else if ("RAZORPAY".equals(auth.getProvider()) && razorpayCheckout.isConfigured()
                 && auth.getReference() != null && !auth.getReference().isBlank()) {
             long amountPaise = amount.movePointRight(2).setScale(0, RoundingMode.HALF_UP).longValueExact();
             ref = razorpayCheckout.refundPayment(auth.getReference(), amountPaise);
@@ -437,12 +445,13 @@ public class OrderService {
         }
         payments.save(auth);
 
+        String suffix = reason != null && !reason.isBlank() ? " (" + reason + ")" : "";
         notifications.create(order.getUserId(),
                 com.nayasantha.api.notification.NotificationService.REFUND_ISSUED,
                 "Refund issued",
-                money(amount) + " has been refunded"
-                        + (reason != null && !reason.isBlank() ? " (" + reason + ")" : "")
-                        + ". Reference " + ref + ".",
+                toWallet
+                        ? money(amount) + " credited to your NayaSantha wallet" + suffix + "."
+                        : money(amount) + " has been refunded" + suffix + ". Reference " + ref + ".",
                 orderId);
         return new RefundDto(r.getId(), amount, type, reason, ref, r.getStatus(), r.getCreatedAt());
     }

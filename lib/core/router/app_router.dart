@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../features/account_screens.dart' hide ProfileScreen, NotificationsScreen;
+import '../../features/account_screens.dart' hide ProfileScreen, NotificationsScreen, WalletScreen;
 import '../../features/notifications/presentation/notifications_screen.dart';
+import '../../features/wallet/presentation/wallet_screen.dart';
 import '../../features/auth_screens.dart';
 import '../../features/checkout_screens.dart' hide OrdersScreen;
 import '../../features/lifestyle_screens.dart' hide PantryScreen, AssistantScreen;

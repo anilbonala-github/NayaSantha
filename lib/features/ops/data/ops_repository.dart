@@ -133,12 +133,13 @@ class OpsRepository {
   Future<void> deliver(String orderId) => _act('/ops/orders/$orderId/deliver');
 
   Future<void> refund(String orderId,
-      {required String type, required double amount, String? reason}) async {
+      {required String type, required double amount, String? reason, bool toWallet = false}) async {
     try {
       await _client.post('/ops/orders/$orderId/refund', body: {
         'type': type,
         'amount': amount,
         if (reason != null && reason.isNotEmpty) 'reason': reason,
+        'toWallet': toWallet,
       });
     } on DioException catch (e) {
       throw ApiFailure.fromDio(e);

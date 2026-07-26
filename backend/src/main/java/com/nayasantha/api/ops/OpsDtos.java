@@ -66,7 +66,8 @@ public final class OpsDtos {
     public record RefundRequest(
             @NotNull String type,                       // CANCELLATION | MISSING_ITEM | QUALITY_CLAIM | GOODWILL
             String reason,
-            @NotNull @DecimalMin(value = "0.01") BigDecimal amount) {}
+            @NotNull @DecimalMin(value = "0.01") BigDecimal amount,
+            Boolean toWallet) {}                         // credit the wallet instead of the source
 
     public record PriceEntry(
             @NotNull UUID productId,

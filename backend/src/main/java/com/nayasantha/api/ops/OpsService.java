@@ -221,7 +221,8 @@ public class OpsService {
 
     @Transactional
     public com.nayasantha.api.order.OrderDtos.RefundDto refund(java.util.UUID orderId, RefundRequest req) {
-        return orderService.refund(orderId, req.type(), req.reason(), req.amount());
+        return orderService.refund(orderId, req.type(), req.reason(), req.amount(),
+                Boolean.TRUE.equals(req.toWallet()));
     }
 
     @Transactional(readOnly = true)
