@@ -24,6 +24,7 @@ public class NotificationService {
     public static final String OUT_FOR_DELIVERY = "OUT_FOR_DELIVERY";
     public static final String DELIVERED = "DELIVERED";
     public static final String REFUND_ISSUED = "REFUND_ISSUED";
+    public static final String REFERRAL_EARNED = "REFERRAL_EARNED";
 
     private final NotificationRepository repo;
     private final com.nayasantha.api.push.PushSender push;

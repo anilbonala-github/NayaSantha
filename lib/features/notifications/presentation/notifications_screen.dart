@@ -100,6 +100,7 @@ class _NotificationTile extends StatelessWidget {
     'OUT_FOR_DELIVERY': (Icons.directions_bike, AppColors.info),
     'DELIVERED': (Icons.inventory_2_outlined, AppColors.forest),
     'REFUND_ISSUED': (Icons.currency_rupee, AppColors.info),
+    'REFERRAL_EARNED': (Icons.group_add, AppColors.carrot),
   };
 
   @override
