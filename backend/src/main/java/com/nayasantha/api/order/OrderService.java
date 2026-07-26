@@ -44,6 +44,7 @@ public class OrderService {
     private final RefundRepository refunds;
     private final com.nayasantha.api.payment.PaymentGateway gateway;
     private final com.nayasantha.api.payment.RazorpayCheckoutService razorpayCheckout;
+    private final com.nayasantha.api.settings.SettingsService settings;
 
     public OrderService(OrderRepository orders, OrderItemRepository items, PriceConsentRepository consents,
                         PaymentAuthorizationRepository payments, PriceExceptionRepository exceptions,
@@ -51,7 +52,8 @@ public class OrderService {
                         com.nayasantha.api.notification.NotificationService notifications,
                         com.nayasantha.api.address.AddressRepository addresses,
                         RefundRepository refunds, com.nayasantha.api.payment.PaymentGateway gateway,
-                        com.nayasantha.api.payment.RazorpayCheckoutService razorpayCheckout) {
+                        com.nayasantha.api.payment.RazorpayCheckoutService razorpayCheckout,
+                        com.nayasantha.api.settings.SettingsService settings) {
         this.orders = orders;
         this.items = items;
         this.consents = consents;
@@ -65,6 +67,7 @@ public class OrderService {
         this.refunds = refunds;
         this.gateway = gateway;
         this.razorpayCheckout = razorpayCheckout;
+        this.settings = settings;
     }
 
     private static String money(BigDecimal v) {
@@ -90,7 +93,7 @@ public class OrderService {
         order.setPricePreference(req.pricePreference());
         order.setEstimatedTotal(plan.getEstimatedTotal());
         order.setMaximumPayable(maxPayable);
-        order.setDeliverySlot("Sun 2:00-8:00 PM");
+        order.setDeliverySlot(settings.deliverySlot());
         // Snapshot the delivery community for packing/delivery waves (Vol2A §7.4).
         var defaultAddress = addresses.findByUserIdOrderByIsDefaultDescCreatedAtDesc(userId)
                 .stream().findFirst().orElse(null);
@@ -290,6 +293,46 @@ public class OrderService {
     @Transactional(readOnly = true)
     public List<Order> ordersByStatus(Order.Status status) {
         return orders.findByStatus(status);
+    }
+
+    /** Operational report across all orders (Vol2A §18). Pilot-scale aggregation. */
+    @Transactional(readOnly = true)
+    public ReportDto report() {
+        List<Order> all = orders.findAll();
+        long total = all.size();
+        long paid = all.stream().filter(o -> o.getStatus() == Order.Status.PAID).count();
+        long delivered = all.stream().filter(o -> o.getStatus() == Order.Status.DELIVERED).count();
+        long cancelled = all.stream().filter(o -> o.getStatus() == Order.Status.CANCELLED).count();
+        long households = all.stream().map(Order::getUserId).distinct().count();
+
+        List<Order> settled = all.stream().filter(o -> o.getFinalTotal() != null).toList();
+        BigDecimal gmvEst = settled.stream().map(Order::getEstimatedTotal).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal gmvFinal = settled.stream().map(Order::getFinalTotal).reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        double avgVariance = 0, withinCapRate = 0;
+        if (!settled.isEmpty()) {
+            double varianceSum = 0;
+            long withinCap = 0;
+            for (Order o : settled) {
+                if (o.getEstimatedTotal().signum() > 0) {
+                    varianceSum += o.getFinalTotal().subtract(o.getEstimatedTotal())
+                            .divide(o.getEstimatedTotal(), 6, RoundingMode.HALF_UP).doubleValue() * 100;
+                }
+                if (o.getFinalTotal().compareTo(o.getMaximumPayable()) <= 0) withinCap++;
+            }
+            avgVariance = varianceSum / settled.size();
+            withinCapRate = (double) withinCap / settled.size();
+        }
+
+        long exceptionCount = exceptions.count();
+        double exceptionRate = settled.isEmpty() ? 0 : (double) exceptionCount / settled.size();
+        long refundCount = refunds.count();
+        BigDecimal refundTotal = refunds.findAll().stream()
+                .map(Refund::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        return new ReportDto(total, paid, delivered, cancelled, households,
+                gmvEst, gmvFinal, avgVariance, withinCapRate,
+                exceptionCount, exceptionRate, refundCount, refundTotal);
     }
 
     /** Saturday 10 PM cutoff: lock every confirmed order for procurement. Returns count locked. */

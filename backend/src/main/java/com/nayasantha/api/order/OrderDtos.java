@@ -37,6 +37,15 @@ public final class OrderDtos {
     public record RefundDto(UUID id, BigDecimal amount, String type, String reason,
                             String reference, String status, Instant createdAt) {}
 
+    /** Operational report snapshot (Vol2A §18 pilot metrics). */
+    public record ReportDto(
+            long totalOrders, long paidOrders, long deliveredOrders, long cancelledOrders,
+            long households,
+            BigDecimal gmvEstimated, BigDecimal gmvFinal,
+            double avgVariancePct, double withinCapRate,
+            long exceptionCount, double exceptionRate,
+            long refundCount, BigDecimal refundTotal) {}
+
     public record PriceComparisonLine(String name, int quantity, BigDecimal forecastRate,
                                       BigDecimal actualRate, BigDecimal estimatedAmount,
                                       BigDecimal finalAmount, BigDecimal difference) {}

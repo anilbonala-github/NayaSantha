@@ -93,6 +93,41 @@ class OpsRepository {
     }
   }
 
+  Future<OpsReport> reports() async {
+    try {
+      return OpsReport.fromJson(await _client.get('/ops/reports') as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiFailure.fromDio(e);
+    }
+  }
+
+  Future<OpsSettings> getSettings() async {
+    try {
+      return OpsSettings.fromJson(await _client.get('/ops/settings') as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiFailure.fromDio(e);
+    }
+  }
+
+  Future<OpsSettings> updateSettings({
+    int? bufferPercent,
+    double? capPercent,
+    int? varianceThresholdPercent,
+    String? deliverySlot,
+  }) async {
+    try {
+      final data = await _client.patch('/ops/settings', body: {
+        if (bufferPercent != null) 'bufferPercent': bufferPercent,
+        if (capPercent != null) 'capPercent': capPercent,
+        if (varianceThresholdPercent != null) 'varianceThresholdPercent': varianceThresholdPercent,
+        if (deliverySlot != null) 'deliverySlot': deliverySlot,
+      });
+      return OpsSettings.fromJson(data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiFailure.fromDio(e);
+    }
+  }
+
   Future<void> pack(String orderId) => _act('/ops/orders/$orderId/pack');
   Future<void> dispatch(String orderId) => _act('/ops/orders/$orderId/dispatch');
   Future<void> deliver(String orderId) => _act('/ops/orders/$orderId/deliver');

@@ -24,11 +24,10 @@ class AdminPortalScreen extends ConsumerStatefulWidget {
 enum _Section { dashboard, cutoff, purchase, capture, packing, delivery, reports, settings }
 
 class _NavItem {
-  const _NavItem(this.section, this.label, this.icon, {this.ready = true});
+  const _NavItem(this.section, this.label, this.icon);
   final _Section section;
   final String label;
   final IconData icon;
-  final bool ready;
 }
 
 const List<_NavItem> _nav = <_NavItem>[
@@ -38,13 +37,18 @@ const List<_NavItem> _nav = <_NavItem>[
   _NavItem(_Section.capture, 'Price Capture', Icons.price_change_outlined),
   _NavItem(_Section.packing, 'Packing', Icons.inventory_2_outlined),
   _NavItem(_Section.delivery, 'Delivery', Icons.local_shipping_outlined),
-  _NavItem(_Section.reports, 'Reports', Icons.bar_chart_outlined, ready: false),
-  _NavItem(_Section.settings, 'Settings', Icons.settings_outlined, ready: false),
+  _NavItem(_Section.reports, 'Reports', Icons.bar_chart_outlined),
+  _NavItem(_Section.settings, 'Settings', Icons.settings_outlined),
 ];
 
 class _AdminPortalScreenState extends ConsumerState<AdminPortalScreen> {
   _Section _section = _Section.dashboard;
   final Map<String, TextEditingController> _rate = <String, TextEditingController>{};
+  final TextEditingController _bufferCtrl = TextEditingController();
+  final TextEditingController _capCtrl = TextEditingController();
+  final TextEditingController _varianceCtrl = TextEditingController();
+  final TextEditingController _slotCtrl = TextEditingController();
+  bool _settingsSeeded = false;
   bool _busy = false;
 
   @override
@@ -52,6 +56,10 @@ class _AdminPortalScreenState extends ConsumerState<AdminPortalScreen> {
     for (final c in _rate.values) {
       c.dispose();
     }
+    _bufferCtrl.dispose();
+    _capCtrl.dispose();
+    _varianceCtrl.dispose();
+    _slotCtrl.dispose();
     super.dispose();
   }
 
@@ -61,6 +69,8 @@ class _AdminPortalScreenState extends ConsumerState<AdminPortalScreen> {
     ref.invalidate(cutoffProvider);
     ref.invalidate(packingProvider);
     ref.invalidate(deliveryProvider);
+    ref.invalidate(reportsProvider);
+    ref.invalidate(settingsProvider);
   }
 
   void _exit() {
@@ -238,11 +248,9 @@ class _AdminPortalScreenState extends ConsumerState<AdminPortalScreen> {
       case _Section.delivery:
         return _deliverySection();
       case _Section.reports:
-        return _placeholder('Reports', Icons.bar_chart_outlined,
-            'Fill rate, variance, on-time delivery and reconciliation reports. Needs the reporting backend — not built yet.');
+        return _reportsSection();
       case _Section.settings:
-        return _placeholder('Settings', Icons.settings_outlined,
-            'Margins, buffer %, cutoff time, variance thresholds and price policy. Configurable settings — not built yet.');
+        return _settingsSection();
     }
   }
 
@@ -732,6 +740,133 @@ class _AdminPortalScreenState extends ConsumerState<AdminPortalScreen> {
     }
   }
 
+  // --- Reports ----------------------------------------------------------------
+  Widget _reportsSection() {
+    final async = ref.watch(reportsProvider);
+    return _scroll(child: async.when(
+      loading: _loading,
+      error: _error,
+      data: (r) => Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: <Widget>[
+        const SectionHeader(title: 'Orders'),
+        Wrap(spacing: Gap.md, runSpacing: Gap.md, children: <Widget>[
+          _tile('Total orders', '${r.totalOrders}', Icons.receipt_long, AppColors.forest),
+          _tile('Paid', '${r.paidOrders}', Icons.payments, AppColors.info),
+          _tile('Delivered', '${r.deliveredOrders}', Icons.check_circle, AppColors.success),
+          _tile('Cancelled', '${r.cancelledOrders}', Icons.cancel, AppColors.textSecondary),
+          _tile('Households', '${r.households}', Icons.groups, AppColors.carrot),
+        ]),
+        const SizedBox(height: Gap.lg),
+        const SectionHeader(title: 'Pricing & trust'),
+        Wrap(spacing: Gap.md, runSpacing: Gap.md, children: <Widget>[
+          _tile('GMV estimated', money(r.gmvEstimated), Icons.trending_up, AppColors.info),
+          _tile('GMV final', money(r.gmvFinal), Icons.payments, AppColors.forest),
+          _tile('Avg variance', '${r.avgVariancePct >= 0 ? '+' : ''}${r.avgVariancePct.toStringAsFixed(1)}%',
+              Icons.show_chart, r.avgVariancePct.abs() > 3 ? AppColors.warning : AppColors.success),
+          _tile('Within cap', '${(r.withinCapRate * 100).toStringAsFixed(0)}%', Icons.verified,
+              r.withinCapRate >= 0.95 ? AppColors.success : AppColors.warning),
+          _tile('Exceptions', '${r.exceptionCount} · ${(r.exceptionRate * 100).toStringAsFixed(0)}%',
+              Icons.error_outline, r.exceptionRate > 0.05 ? AppColors.danger : AppColors.success),
+        ]),
+        const SizedBox(height: Gap.lg),
+        const SectionHeader(title: 'Refunds'),
+        Wrap(spacing: Gap.md, runSpacing: Gap.md, children: <Widget>[
+          _tile('Refunds issued', '${r.refundCount}', Icons.currency_rupee, AppColors.info),
+          _tile('Refund total', money(r.refundTotal), Icons.receipt, AppColors.textSecondary),
+        ]),
+        const SizedBox(height: Gap.section),
+      ]),
+    ));
+  }
+
+  // --- Settings ---------------------------------------------------------------
+  Widget _settingsSection() {
+    final async = ref.watch(settingsProvider);
+    return _scroll(child: async.when(
+      loading: _loading,
+      error: _error,
+      data: (s) {
+        if (!_settingsSeeded) {
+          _bufferCtrl.text = '${s.bufferPercent}';
+          _capCtrl.text = s.capPercent.toStringAsFixed(2);
+          _varianceCtrl.text = '${s.varianceThresholdPercent}';
+          _slotCtrl.text = s.deliverySlot;
+          _settingsSeeded = true;
+        }
+        return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: <Widget>[
+          const Text('These apply to new plans, buy lists and orders.',
+              style: TextStyle(color: AppColors.textSecondary)),
+          const SizedBox(height: Gap.lg),
+          NsCard(child: Column(children: <Widget>[
+            _settingField(_bufferCtrl, 'Procurement buffer', '%',
+                'Extra quantity added to confirmed demand on the buy list.'),
+            const Divider(height: Gap.xl, color: AppColors.border),
+            _settingField(_capCtrl, 'Guaranteed-max markup', '%',
+                'Max payable = round-up-to-5 of estimate × (1 + this%). Default 2.5.'),
+            const Divider(height: Gap.xl, color: AppColors.border),
+            _settingField(_varianceCtrl, 'Price-alert threshold', '%',
+                'Flag a captured rate as a material change above this variance.'),
+            const Divider(height: Gap.xl, color: AppColors.border),
+            _settingField(_slotCtrl, 'Delivery slot', '',
+                'Shown on new orders (e.g. "Sun 2:00-8:00 PM").', number: false),
+          ])),
+          const SizedBox(height: Gap.lg),
+          SizedBox(width: double.infinity, child: FilledButton.icon(
+            onPressed: _busy ? null : _saveSettings,
+            icon: const Icon(Icons.save),
+            label: Text(_busy ? 'Saving…' : 'Save settings'),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.forest),
+          )),
+          const SizedBox(height: Gap.section),
+        ]);
+      },
+    ));
+  }
+
+  Widget _settingField(TextEditingController c, String label, String suffix, String help,
+      {bool number = true}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: Gap.sm),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: <Widget>[
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: <Widget>[
+          Text(label, style: Theme.of(context).textTheme.titleSmall),
+          const SizedBox(height: 2),
+          Text(help, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+        ])),
+        const SizedBox(width: Gap.md),
+        SizedBox(
+          width: number ? 96 : 170,
+          child: TextField(
+            controller: c,
+            keyboardType: number ? const TextInputType.numberWithOptions(decimal: true) : TextInputType.text,
+            inputFormatters: number
+                ? <TextInputFormatter>[FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))]
+                : null,
+            textAlign: number ? TextAlign.right : TextAlign.start,
+            decoration: InputDecoration(suffixText: suffix, isDense: true, border: const OutlineInputBorder()),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  Future<void> _saveSettings() async {
+    setState(() => _busy = true);
+    try {
+      await ref.read(opsRepositoryProvider).updateSettings(
+            bufferPercent: int.tryParse(_bufferCtrl.text.trim()),
+            capPercent: double.tryParse(_capCtrl.text.trim()),
+            varianceThresholdPercent: int.tryParse(_varianceCtrl.text.trim()),
+            deliverySlot: _slotCtrl.text.trim().isEmpty ? null : _slotCtrl.text.trim(),
+          );
+      ref.invalidate(settingsProvider);
+      _snack('Settings saved');
+    } on ApiFailure catch (f) {
+      _snack(f.userMessage, error: true);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   // --- shared bits ------------------------------------------------------------
   Widget _scroll({required Widget child}) => RefreshIndicator(
         onRefresh: () async => _refresh(),
@@ -771,13 +906,6 @@ class _AdminPortalScreenState extends ConsumerState<AdminPortalScreen> {
         message: 'Once customers lock their weekly plans, the consolidated buy list appears here for Sunday procurement.',
       ));
 
-  Widget _placeholder(String title, IconData icon, String message) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(Gap.xl),
-          child: EmptyState(icon: icon, title: title, message: message),
-        ),
-      );
-
   Widget _errorCard(Object e) {
     final msg = e is ApiFailure ? e.userMessage : 'Something went wrong';
     return NsCard(
@@ -809,9 +937,6 @@ class _NavTile extends StatelessWidget {
             style: TextStyle(
                 color: AppColors.textOnDark,
                 fontWeight: selected ? FontWeight.w700 : FontWeight.w400)),
-        trailing: item.ready
-            ? null
-            : const Text('soon', style: TextStyle(color: Color(0x99F3F8F1), fontSize: 10)),
         onTap: onTap,
       ),
     );

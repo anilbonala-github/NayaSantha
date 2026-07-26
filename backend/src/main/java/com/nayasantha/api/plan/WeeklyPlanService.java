@@ -40,13 +40,15 @@ public class WeeklyPlanService {
     private final PantryService pantryService;
     private final GeminiPlanner gemini;
     private final AppProperties props;
+    private final com.nayasantha.api.settings.SettingsService settings;
 
     private static final BigDecimal DEFAULT_BUDGET = BigDecimal.valueOf(1500);
 
     public WeeklyPlanService(WeeklyPlanRepository plans, WeeklyPlanItemRepository planItems,
                              ProductRepository products, ProductPriceRepository prices,
                              HouseholdRepository households, HouseholdMemberRepository members,
-                             PantryService pantryService, GeminiPlanner gemini, AppProperties props) {
+                             PantryService pantryService, GeminiPlanner gemini, AppProperties props,
+                             com.nayasantha.api.settings.SettingsService settings) {
         this.plans = plans;
         this.planItems = planItems;
         this.products = products;
@@ -55,6 +57,7 @@ public class WeeklyPlanService {
         this.members = members;
         this.pantryService = pantryService;
         this.gemini = gemini;
+        this.settings = settings;
         this.props = props;
     }
 
@@ -119,10 +122,10 @@ public class WeeklyPlanService {
         return plans.save(plan);
     }
 
-    /** Guaranteed maximum payable = round up to nearest 5 of estimate × 1.025 (Vol2A §9). */
-    public static BigDecimal maxPayable(BigDecimal estimate) {
+    /** Guaranteed maximum payable = round up to nearest 5 of estimate × capFactor (Vol2A §9). */
+    public BigDecimal maxPayable(BigDecimal estimate) {
         BigDecimal five = BigDecimal.valueOf(5);
-        return estimate.multiply(BigDecimal.valueOf(1.025))
+        return estimate.multiply(settings.capFactor())
                 .divide(five, 0, RoundingMode.CEILING).multiply(five);
     }
 

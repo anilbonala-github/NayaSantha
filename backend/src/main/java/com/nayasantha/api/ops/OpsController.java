@@ -103,4 +103,10 @@ public class OpsController {
             @PathVariable java.util.UUID id, @Valid @RequestBody RefundRequest body) {
         return ApiResponse.of(ops.refund(id, body));
     }
+
+    /** Operational report (pilot metrics). */
+    @GetMapping("/reports")
+    public ApiResponse<com.nayasantha.api.order.OrderDtos.ReportDto> reports() {
+        return ApiResponse.of(ops.reports());
+    }
 }

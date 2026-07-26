@@ -25,15 +25,15 @@ import java.util.*;
 @Service
 public class OpsService {
 
-    /** Default procurement buffer % added to confirmed demand (Vol2A FR-007). */
-    private static final int BUFFER_PERCENT = 5;
-
     private final OrderService orderService;
     private final MarketPriceRepository prices;
+    private final com.nayasantha.api.settings.SettingsService settings;
 
-    public OpsService(OrderService orderService, MarketPriceRepository prices) {
+    public OpsService(OrderService orderService, MarketPriceRepository prices,
+                      com.nayasantha.api.settings.SettingsService settings) {
         this.orderService = orderService;
         this.prices = prices;
+        this.settings = settings;
     }
 
     /** Monday of the current (UTC) delivery week — the market_prices partition key. */
@@ -79,14 +79,16 @@ public class OpsService {
             }
         }
 
+        final int bufferPercent = settings.bufferPercent();
+        final BigDecimal capFactor = settings.capFactor();
         List<PurchaseLineDto> out = new ArrayList<>(byProduct.size());
         byProduct.forEach((productId, a) -> {
             BigDecimal forecast = a.quantity == 0 ? BigDecimal.ZERO
                     : a.estimated.divide(BigDecimal.valueOf(a.quantity), 2, RoundingMode.HALF_UP);
-            int buyQty = (int) Math.ceil(a.quantity * (1 + BUFFER_PERCENT / 100.0));
-            BigDecimal maxRate = forecast.multiply(BigDecimal.valueOf(1.025)).setScale(2, RoundingMode.CEILING);
+            int buyQty = (int) Math.ceil(a.quantity * (1 + bufferPercent / 100.0));
+            BigDecimal maxRate = forecast.multiply(capFactor).setScale(2, RoundingMode.CEILING);
             out.add(new PurchaseLineDto(productId, a.name, a.unit, a.quantity,
-                    BUFFER_PERCENT, buyQty, forecast, maxRate,
+                    bufferPercent, buyQty, forecast, maxRate,
                     capturedRate.get(productId), a.estimated));
         });
         out.sort(Comparator.comparing(PurchaseLineDto::name, String.CASE_INSENSITIVE_ORDER));
@@ -220,6 +222,11 @@ public class OpsService {
     @Transactional
     public com.nayasantha.api.order.OrderDtos.RefundDto refund(java.util.UUID orderId, RefundRequest req) {
         return orderService.refund(orderId, req.type(), req.reason(), req.amount());
+    }
+
+    @Transactional(readOnly = true)
+    public com.nayasantha.api.order.OrderDtos.ReportDto reports() {
+        return orderService.report();
     }
 
     /** Mutable per-product accumulator for the consolidated buy list. */

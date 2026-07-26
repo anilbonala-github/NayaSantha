@@ -218,6 +218,70 @@ class DeliverySummary {
       );
 }
 
+class OpsReport {
+  const OpsReport({
+    required this.totalOrders,
+    required this.paidOrders,
+    required this.deliveredOrders,
+    required this.cancelledOrders,
+    required this.households,
+    required this.gmvEstimated,
+    required this.gmvFinal,
+    required this.avgVariancePct,
+    required this.withinCapRate,
+    required this.exceptionCount,
+    required this.exceptionRate,
+    required this.refundCount,
+    required this.refundTotal,
+  });
+
+  final int totalOrders, paidOrders, deliveredOrders, cancelledOrders, households;
+  final double gmvEstimated, gmvFinal, avgVariancePct, withinCapRate;
+  final int exceptionCount;
+  final double exceptionRate;
+  final int refundCount;
+  final double refundTotal;
+
+  static int _i(dynamic v) => (v as num?)?.toInt() ?? 0;
+
+  factory OpsReport.fromJson(Map<String, dynamic> j) => OpsReport(
+        totalOrders: _i(j['totalOrders']),
+        paidOrders: _i(j['paidOrders']),
+        deliveredOrders: _i(j['deliveredOrders']),
+        cancelledOrders: _i(j['cancelledOrders']),
+        households: _i(j['households']),
+        gmvEstimated: _d(j['gmvEstimated']),
+        gmvFinal: _d(j['gmvFinal']),
+        avgVariancePct: _d(j['avgVariancePct']),
+        withinCapRate: _d(j['withinCapRate']),
+        exceptionCount: _i(j['exceptionCount']),
+        exceptionRate: _d(j['exceptionRate']),
+        refundCount: _i(j['refundCount']),
+        refundTotal: _d(j['refundTotal']),
+      );
+}
+
+class OpsSettings {
+  const OpsSettings({
+    required this.bufferPercent,
+    required this.capPercent,
+    required this.varianceThresholdPercent,
+    required this.deliverySlot,
+  });
+
+  final int bufferPercent;
+  final double capPercent;
+  final int varianceThresholdPercent;
+  final String deliverySlot;
+
+  factory OpsSettings.fromJson(Map<String, dynamic> j) => OpsSettings(
+        bufferPercent: (j['bufferPercent'] as num?)?.toInt() ?? 5,
+        capPercent: _d(j['capPercent']),
+        varianceThresholdPercent: (j['varianceThresholdPercent'] as num?)?.toInt() ?? 10,
+        deliverySlot: j['deliverySlot'] as String? ?? '',
+      );
+}
+
 class CaptureResult {
   const CaptureResult({required this.weekStart, required this.captured});
   final String weekStart;

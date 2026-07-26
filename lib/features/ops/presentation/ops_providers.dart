@@ -26,3 +26,11 @@ final packingProvider = FutureProvider.autoDispose<PackingSummary>(
 /// Delivery dashboard: orders ready to dispatch / out for delivery.
 final deliveryProvider = FutureProvider.autoDispose<DeliverySummary>(
     (ref) => ref.watch(opsRepositoryProvider).delivery());
+
+/// Operational report (pilot metrics).
+final reportsProvider = FutureProvider.autoDispose<OpsReport>(
+    (ref) => ref.watch(opsRepositoryProvider).reports());
+
+/// Configurable ops settings.
+final settingsProvider = FutureProvider.autoDispose<OpsSettings>(
+    (ref) => ref.watch(opsRepositoryProvider).getSettings());
