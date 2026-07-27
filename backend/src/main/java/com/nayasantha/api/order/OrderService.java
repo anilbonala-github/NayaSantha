@@ -46,6 +46,7 @@ public class OrderService {
     private final com.nayasantha.api.payment.RazorpayCheckoutService razorpayCheckout;
     private final com.nayasantha.api.settings.SettingsService settings;
     private final com.nayasantha.api.wallet.WalletService wallet;
+    private final com.nayasantha.api.coupon.CouponService coupons;
 
     public OrderService(OrderRepository orders, OrderItemRepository items, PriceConsentRepository consents,
                         PaymentAuthorizationRepository payments, PriceExceptionRepository exceptions,
@@ -55,7 +56,8 @@ public class OrderService {
                         RefundRepository refunds, com.nayasantha.api.payment.PaymentGateway gateway,
                         com.nayasantha.api.payment.RazorpayCheckoutService razorpayCheckout,
                         com.nayasantha.api.settings.SettingsService settings,
-                        com.nayasantha.api.wallet.WalletService wallet) {
+                        com.nayasantha.api.wallet.WalletService wallet,
+                        com.nayasantha.api.coupon.CouponService coupons) {
         this.orders = orders;
         this.items = items;
         this.consents = consents;
@@ -71,6 +73,7 @@ public class OrderService {
         this.razorpayCheckout = razorpayCheckout;
         this.settings = settings;
         this.wallet = wallet;
+        this.coupons = coupons;
     }
 
     private static String money(BigDecimal v) {
@@ -278,8 +281,9 @@ public class OrderService {
         }
         PaymentAuthorization auth = payments.findFirstByOrderIdOrderByCreatedAtDesc(orderId)
                 .orElseThrow(() -> ApiException.notFound("Payment authorization"));
-        auth.setCapturedAmount(order.getFinalTotal());          // capture only the final amount
-        auth.setReference(gateway.capture(auth.getReference(), order.getFinalTotal()));
+        BigDecimal payable = order.getAmountPayable();          // final total less any coupon discount
+        auth.setCapturedAmount(payable);                        // capture only the net amount
+        auth.setReference(gateway.capture(auth.getReference(), payable));
         auth.setStatus(PaymentAuthorization.Status.CAPTURED);
         payments.save(auth);
         order.setStatus(Order.Status.PAID);
@@ -287,7 +291,7 @@ public class OrderService {
         notifications.create(order.getUserId(),
                 com.nayasantha.api.notification.NotificationService.PAYMENT_COMPLETE,
                 "Payment complete",
-                money(order.getFinalTotal()) + " charged. Your final invoice and savings summary are ready.",
+                money(payable) + " charged. Your final invoice and savings summary are ready.",
                 order.getId());
         return toDto(saved);
     }
@@ -480,7 +484,8 @@ public class OrderService {
         }
         PaymentAuthorization auth = payments.findFirstByOrderIdOrderByCreatedAtDesc(orderId)
                 .orElseThrow(() -> ApiException.notFound("Payment authorization"));
-        auth.setCapturedAmount(order.getFinalTotal());
+        BigDecimal payable = order.getAmountPayable();
+        auth.setCapturedAmount(payable);
         auth.setProvider("RAZORPAY");
         auth.setReference(gatewayPaymentId);
         auth.setStatus(PaymentAuthorization.Status.CAPTURED);
@@ -490,9 +495,39 @@ public class OrderService {
         notifications.create(order.getUserId(),
                 com.nayasantha.api.notification.NotificationService.PAYMENT_COMPLETE,
                 "Payment complete",
-                money(order.getFinalTotal()) + " charged. Your final invoice and savings summary are ready.",
+                money(payable) + " charged. Your final invoice and savings summary are ready.",
                 order.getId());
         return toDto(saved);
+    }
+
+    // --- Coupons: apply/remove a discount to a settled order before payment -------
+    @Transactional
+    public OrderDto applyCoupon(UUID userId, UUID orderId, String code) {
+        Order order = owned(userId, orderId);
+        if (order.getStatus() != Order.Status.FINALIZED || order.getFinalTotal() == null) {
+            throw ApiException.userError("A coupon can only be applied to a settled order that's ready to pay.");
+        }
+        boolean isNewUser = orders.countByUserIdAndStatusIn(userId,
+                List.of(Order.Status.PAID, Order.Status.DELIVERED)) == 0;
+        com.nayasantha.api.coupon.CouponService.Applied applied =
+                coupons.validateAndCompute(code, userId, order.getFinalTotal(), isNewUser, orderId);
+        coupons.recordRedemption(applied.coupon(), userId, orderId, applied.discount());
+        order.setCouponCode(applied.coupon().getCode());
+        order.setDiscountAmount(applied.discount());
+        Order saved = orders.save(order);
+        return toDto(saved);
+    }
+
+    @Transactional
+    public OrderDto removeCoupon(UUID userId, UUID orderId) {
+        Order order = owned(userId, orderId);
+        if (order.getStatus() == Order.Status.PAID) {
+            throw ApiException.userError("This order has already been paid.");
+        }
+        coupons.clearRedemption(orderId);
+        order.setCouponCode(null);
+        order.setDiscountAmount(BigDecimal.ZERO);
+        return toDto(orders.save(order));
     }
 
     // --- reads --------------------------------------------------------------------
@@ -590,6 +625,7 @@ public class OrderService {
         return new OrderDto(order.getId(), order.getStatus().name(), order.getPricePreference(),
                 order.getEstimatedTotal(), order.getMaximumPayable(), order.getFinalTotal(), savings,
                 order.getDeliverySlot(), order.getFulfillmentStage().name(), paymentStatus, itemDtos, exDto,
-                order.getCreatedAt(), order.getVersion(), refundedAmount, refundDtos);
+                order.getCreatedAt(), order.getVersion(), refundedAmount, refundDtos,
+                order.getCouponCode(), order.getDiscountAmount(), order.getAmountPayable());
     }
 }

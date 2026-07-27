@@ -19,13 +19,18 @@ public class GlobalExceptionHandler {
                            String developerMessage, String traceId) {}
 
     private ResponseEntity<ApiError> build(ErrorCode code, String developerMessage) {
+        return build(code, developerMessage, code.userMessage());
+    }
+
+    private ResponseEntity<ApiError> build(ErrorCode code, String developerMessage, String userMessage) {
         return ResponseEntity.status(code.status())
-                .body(new ApiError(code.name(), code.userMessage(), developerMessage, MDC.get("traceId")));
+                .body(new ApiError(code.name(), userMessage, developerMessage, MDC.get("traceId")));
     }
 
     @ExceptionHandler(ApiException.class)
     public ResponseEntity<ApiError> handleApi(ApiException ex) {
-        return build(ex.getErrorCode(), ex.getMessage());
+        String userMessage = ex.getUserMessage() != null ? ex.getUserMessage() : ex.getErrorCode().userMessage();
+        return build(ex.getErrorCode(), ex.getMessage(), userMessage);
     }
 
     @ExceptionHandler(ObjectOptimisticLockingFailureException.class)

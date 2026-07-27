@@ -83,4 +83,8 @@ class ApiClient {
       (await _dio.patch(path, data: body)).data['data'];
 
   Future<void> delete(String path) => _dio.delete(path);
+
+  /// DELETE returning the unwrapped `data` payload.
+  Future<dynamic> deleteReturning(String path) async =>
+      (await _dio.delete(path)).data['data'];
 }

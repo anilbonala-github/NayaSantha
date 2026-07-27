@@ -13,6 +13,9 @@ class CustomerOrder {
     this.fulfillmentStage,
     this.paymentStatus,
     this.refundedAmount = 0,
+    this.couponCode,
+    this.discountAmount = 0,
+    this.amountPayable,
     this.items = const <OrderLine>[],
     this.exception,
   });
@@ -28,12 +31,19 @@ class CustomerOrder {
   final String? fulfillmentStage;
   final String? paymentStatus;
   final double refundedAmount;
+  final String? couponCode;
+  final double discountAmount;
+  final double? amountPayable;
   final List<OrderLine> items;
   final OrderException? exception;
 
   bool get awaitingApproval => status == 'AWAITING_APPROVAL';
   bool get isPaid => status == 'PAID';
   bool get hasRefund => refundedAmount > 0;
+  bool get hasCoupon => couponCode != null && discountAmount > 0;
+  bool get canApplyCoupon => status == 'FINALIZED';
+  /// Net the customer pays: server-computed amountPayable, else final total.
+  double? get payable => amountPayable ?? finalTotal;
 
   static double? _d(dynamic v) => v == null ? null : (v as num).toDouble();
 
@@ -49,6 +59,9 @@ class CustomerOrder {
         fulfillmentStage: j['fulfillmentStage'] as String?,
         paymentStatus: j['paymentStatus'] as String?,
         refundedAmount: _d(j['refundedAmount']) ?? 0,
+        couponCode: j['couponCode'] as String?,
+        discountAmount: _d(j['discountAmount']) ?? 0,
+        amountPayable: _d(j['amountPayable']),
         items: (j['items'] as List?)
                 ?.map((e) => OrderLine.fromJson(e as Map<String, dynamic>))
                 .toList() ??

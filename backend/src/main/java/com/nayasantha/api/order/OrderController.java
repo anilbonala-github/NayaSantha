@@ -1,6 +1,7 @@
 package com.nayasantha.api.order;
 
 import com.nayasantha.api.common.ApiResponse;
+import com.nayasantha.api.coupon.CouponDtos.ApplyCouponRequest;
 import com.nayasantha.api.order.OrderDtos.*;
 import com.nayasantha.api.security.CurrentUser;
 import jakarta.validation.Valid;
@@ -47,6 +48,18 @@ public class OrderController {
     @PostMapping("/payments/{orderId}/capture")
     public ApiResponse<OrderDto> capture(@PathVariable UUID orderId) {
         return ApiResponse.of(orderService.capture(CurrentUser.id(), orderId));
+    }
+
+    /** Apply a coupon code to a settled order before payment. */
+    @PostMapping("/orders/{id}/apply-coupon")
+    public ApiResponse<OrderDto> applyCoupon(@PathVariable UUID id,
+                                             @Valid @RequestBody ApplyCouponRequest body) {
+        return ApiResponse.of(orderService.applyCoupon(CurrentUser.id(), id, body.code()));
+    }
+
+    @DeleteMapping("/orders/{id}/coupon")
+    public ApiResponse<OrderDto> removeCoupon(@PathVariable UUID id) {
+        return ApiResponse.of(orderService.removeCoupon(CurrentUser.id(), id));
     }
 
     @GetMapping("/orders")

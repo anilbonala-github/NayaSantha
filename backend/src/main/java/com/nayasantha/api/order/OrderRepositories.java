@@ -12,6 +12,7 @@ import java.util.UUID;
 interface OrderRepository extends JpaRepository<Order, UUID> {
     Page<Order> findByUserIdOrderByCreatedAtDesc(UUID userId, Pageable pageable);
     List<Order> findByStatus(Order.Status status);
+    long countByUserIdAndStatusIn(UUID userId, List<Order.Status> statuses);
 }
 
 interface OrderItemRepository extends JpaRepository<OrderItem, UUID> {

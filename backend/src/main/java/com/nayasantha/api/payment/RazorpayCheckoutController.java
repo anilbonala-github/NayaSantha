@@ -44,13 +44,14 @@ public class RazorpayCheckoutController {
             return ApiResponse.of(Map.of("configured", false));
         }
         OrderDto order = orders.get(CurrentUser.id(), body.orderId());
-        if (order.finalTotal() == null) {
+        if (order.amountPayable() == null) {
             throw new ApiException(ErrorCode.VALIDATION_ERROR, "Order has no final amount yet");
         }
         if ("PAID".equals(order.status())) {
             throw new ApiException(ErrorCode.VALIDATION_ERROR, "Order is already paid");
         }
-        long amountPaise = order.finalTotal().movePointRight(2)
+        // Charge the net after any coupon discount.
+        long amountPaise = order.amountPayable().movePointRight(2)
                 .setScale(0, java.math.RoundingMode.HALF_UP).longValueExact();
 
         // Razorpay caps receipt at 40 chars; a bare UUID is 36.

@@ -11,7 +11,7 @@ import '../../features/auth_screens.dart';
 import '../../features/checkout_screens.dart' hide OrdersScreen;
 import '../../features/recipe/presentation/recipes_screen.dart';
 import '../../features/budget/presentation/budget_screen.dart';
-import '../../features/offers_screen.dart';
+import '../../features/coupon/presentation/offers_screen.dart';
 import '../../features/onboarding/presentation/onboarding_screens.dart';
 import '../../features/address/presentation/address_screen.dart';
 import '../../features/assistant/presentation/assistant_screen.dart';

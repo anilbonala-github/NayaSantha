@@ -23,6 +23,7 @@ class _OrderBillScreenState extends ConsumerState<OrderBillScreen> {
   CustomerOrder? _order;
   bool _busy = true;
   String? _error;
+  final TextEditingController _couponController = TextEditingController();
 
   @override
   void initState() {
@@ -30,7 +31,42 @@ class _OrderBillScreenState extends ConsumerState<OrderBillScreen> {
     _load();
   }
 
+  @override
+  void dispose() {
+    _couponController.dispose();
+    super.dispose();
+  }
+
   Future<void> _load() => _run(() => ref.read(orderRepositoryProvider).get(widget.orderId));
+
+  Future<void> _applyCoupon(CustomerOrder o) async {
+    final code = _couponController.text.trim();
+    if (code.isEmpty) return;
+    FocusScope.of(context).unfocus();
+    setState(() { _busy = true; _error = null; });
+    try {
+      final order = await ref.read(orderRepositoryProvider).applyCoupon(o.id, code);
+      if (mounted) {
+        _couponController.clear();
+        setState(() { _order = order; _busy = false; });
+        _snack('Coupon applied');
+      }
+    } on ApiFailure catch (f) {
+      if (mounted) setState(() => _busy = false);
+      _snack(f.userMessage, error: true);
+    }
+  }
+
+  Future<void> _removeCoupon(CustomerOrder o) async {
+    setState(() { _busy = true; _error = null; });
+    try {
+      final order = await ref.read(orderRepositoryProvider).removeCoupon(o.id);
+      if (mounted) setState(() { _order = order; _busy = false; });
+    } on ApiFailure catch (f) {
+      if (mounted) setState(() => _busy = false);
+      _snack(f.userMessage, error: true);
+    }
+  }
 
   Future<void> _run(Future<CustomerOrder> Function() action) async {
     setState(() { _busy = true; _error = null; });
@@ -152,6 +188,19 @@ class _OrderBillScreenState extends ConsumerState<OrderBillScreen> {
                               color: o.savings! >= 0 ? AppColors.success : AppColors.textSecondary,
                             ),
                           ),
+                        if (o.hasCoupon) ...<Widget>[
+                          Padding(
+                            padding: const EdgeInsets.only(top: Gap.sm),
+                            child: _row('Coupon ${o.couponCode}',
+                                '−₹${o.discountAmount.toStringAsFixed(0)}',
+                                color: AppColors.success),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.only(top: Gap.sm),
+                            child: _row('Amount payable', '₹${(o.payable ?? 0).toStringAsFixed(0)}',
+                                bold: true),
+                          ),
+                        ],
                         if (o.hasRefund)
                           Padding(
                             padding: const EdgeInsets.only(top: Gap.sm),
@@ -162,6 +211,12 @@ class _OrderBillScreenState extends ConsumerState<OrderBillScreen> {
                     ]),
                   ),
                   const SizedBox(height: Gap.lg),
+
+                  // Coupon entry (only when settled and ready to pay).
+                  if (o.canApplyCoupon || o.hasCoupon) ...<Widget>[
+                    _couponCard(o),
+                    const SizedBox(height: Gap.lg),
+                  ],
 
                   // Estimate vs actual, item by item (Vol2A §6.3 transparency).
                   Text(settled ? 'Estimate vs actual' : 'Items',
@@ -214,7 +269,7 @@ class _OrderBillScreenState extends ConsumerState<OrderBillScreen> {
       case 'FINALIZED':
         children.add(FilledButton(
           onPressed: _busy ? null : () => _payNow(o),
-          child: Text('Pay final amount · ₹${o.finalTotal!.toStringAsFixed(0)}'),
+          child: Text('Pay ${o.hasCoupon ? '' : 'final amount · '}₹${(o.payable ?? 0).toStringAsFixed(0)}'),
         ));
       case 'PAID':
         children.add(Container(
@@ -223,7 +278,7 @@ class _OrderBillScreenState extends ConsumerState<OrderBillScreen> {
           decoration: BoxDecoration(
               color: AppColors.success.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(Radii.md)),
-          child: Text('Paid ₹${o.finalTotal!.toStringAsFixed(0)} · out for Sunday delivery',
+          child: Text('Paid ₹${(o.payable ?? o.finalTotal)!.toStringAsFixed(0)} · out for Sunday delivery',
               textAlign: TextAlign.center,
               style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.forest)),
         ));
@@ -241,6 +296,57 @@ class _OrderBillScreenState extends ConsumerState<OrderBillScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _couponCard(CustomerOrder o) {
+    if (o.hasCoupon) {
+      return NsCard(
+        color: AppColors.success.withValues(alpha: 0.08),
+        borderColor: AppColors.success.withValues(alpha: 0.4),
+        child: Row(children: <Widget>[
+          const Icon(Icons.local_offer, size: 20, color: AppColors.success),
+          const SizedBox(width: Gap.md),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: <Widget>[
+              Text('${o.couponCode} applied',
+                  style: const TextStyle(fontWeight: FontWeight.w700)),
+              Text('You save ₹${o.discountAmount.toStringAsFixed(0)} on this order.',
+                  style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
+            ]),
+          ),
+          if (!o.isPaid)
+            TextButton(
+              onPressed: _busy ? null : () => _removeCoupon(o),
+              child: const Text('Remove'),
+            ),
+        ]),
+      );
+    }
+    return NsCard(
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: <Widget>[
+        const Text('Have a coupon?', style: TextStyle(fontWeight: FontWeight.w700)),
+        const SizedBox(height: Gap.sm),
+        Row(children: <Widget>[
+          Expanded(
+            child: TextField(
+              controller: _couponController,
+              textCapitalization: TextCapitalization.characters,
+              decoration: const InputDecoration(
+                hintText: 'Enter code',
+                isDense: true,
+                border: OutlineInputBorder(),
+              ),
+              onSubmitted: (_) => _applyCoupon(o),
+            ),
+          ),
+          const SizedBox(width: Gap.sm),
+          FilledButton(
+            onPressed: _busy ? null : () => _applyCoupon(o),
+            child: const Text('Apply'),
+          ),
+        ]),
+      ]),
     );
   }
 

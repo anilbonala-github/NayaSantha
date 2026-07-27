@@ -46,6 +46,13 @@ class OrderRepository {
   Future<CustomerOrder> capture(String orderId) =>
       _wrap(() => _client.post('/payments/$orderId/capture'));
 
+  /// Apply a coupon code to a settled order before payment.
+  Future<CustomerOrder> applyCoupon(String orderId, String code) =>
+      _wrap(() => _client.post('/orders/$orderId/apply-coupon', body: {'code': code}));
+
+  Future<CustomerOrder> removeCoupon(String orderId) =>
+      _wrap(() => _client.deleteReturning('/orders/$orderId/coupon'));
+
   /// Ask the backend to create a Razorpay order for this order's final amount.
   /// Returns {configured, keyId, razorpayOrderId, amount, currency, ...}.
   Future<Map<String, dynamic>> createRazorpayOrder(String orderId) async {
