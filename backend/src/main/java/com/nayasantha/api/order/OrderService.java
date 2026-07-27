@@ -298,6 +298,12 @@ public class OrderService {
         return orders.findByStatus(status);
     }
 
+    /** A user's recent orders (newest first), for budget insights. */
+    @Transactional(readOnly = true)
+    public List<Order> ordersOfUser(UUID userId) {
+        return orders.findByUserIdOrderByCreatedAtDesc(userId, PageRequest.of(0, 200)).getContent();
+    }
+
     /** Operational report across all orders (Vol2A §18). Pilot-scale aggregation. */
     @Transactional(readOnly = true)
     public ReportDto report() {
