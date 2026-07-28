@@ -58,12 +58,26 @@ class FcmService {
       if (kIsWeb && _webVapidKey.isEmpty) {
         return 'Web push key not configured yet.';
       }
-      final token = kIsWeb
-          ? await messaging.getToken(vapidKey: _webVapidKey)
-          : await messaging.getToken();
+      // getToken can transiently fail with SERVICE_NOT_AVAILABLE (Play services /
+      // network not ready) — retry a few times with backoff before giving up.
+      String? token;
+      Object? lastError;
+      for (int attempt = 1; attempt <= 4; attempt++) {
+        try {
+          token = kIsWeb
+              ? await messaging.getToken(vapidKey: _webVapidKey)
+              : await messaging.getToken();
+          if (token != null && token.isNotEmpty) break;
+        } catch (e) {
+          lastError = e;
+        }
+        if (attempt < 4) await Future.delayed(Duration(seconds: 2 * attempt));
+      }
       if (token == null || token.isEmpty) {
-        return 'No push token available (permission: $permission). '
-            'On this device, check Google Play services and that notifications are allowed.';
+        final reason = lastError != null ? ' ($lastError)' : '';
+        return 'Couldn’t get a push token yet$reason. This is usually a temporary '
+            'Google Play services/network issue — try again on mobile data, update '
+            'Google Play services, or reboot, then tap Enable again.';
       }
 
       await _post(client, token);
