@@ -40,22 +40,31 @@ class FcmService {
     }
   }
 
-  /// Request permission, fetch the token and register it. Call once authenticated.
-  static Future<void> registerToken(ApiClient client) async {
+  /// Request permission, fetch the token and register it. Returns a human-readable
+  /// status so a UI can show what happened. Call once authenticated.
+  static Future<String> registerToken(ApiClient client) async {
     if (!_initialised) await init();
-    if (!_initialised) return;
+    if (!_initialised) return 'Firebase is not initialised on this device.';
     try {
       final messaging = FirebaseMessaging.instance;
-      await messaging.requestPermission();
+      String permission = 'unknown';
+      try {
+        final settings = await messaging.requestPermission();
+        permission = settings.authorizationStatus.name;
+      } catch (_) {
+        // On Android <13 permission is implicit; keep going and fetch the token.
+      }
 
       if (kIsWeb && _webVapidKey.isEmpty) {
-        debugPrint('[fcm] web VAPID key not set — skipping web token');
-        return;
+        return 'Web push key not configured yet.';
       }
       final token = kIsWeb
           ? await messaging.getToken(vapidKey: _webVapidKey)
           : await messaging.getToken();
-      if (token == null || token.isEmpty) return;
+      if (token == null || token.isEmpty) {
+        return 'No push token available (permission: $permission). '
+            'On this device, check Google Play services and that notifications are allowed.';
+      }
 
       await _post(client, token);
       _lastToken = token;
@@ -63,8 +72,10 @@ class FcmService {
         _lastToken = t;
         _post(client, t);
       });
+      return 'Notifications enabled ✓ (permission: $permission, '
+          'token …${token.substring(token.length - 6)}).';
     } catch (e) {
-      debugPrint('[fcm] register skipped: $e');
+      return 'Could not enable notifications: $e';
     }
   }
 

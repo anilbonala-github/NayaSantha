@@ -24,14 +24,41 @@ public class OpsController {
     private final WeeklyCycleService cycle;
     private final com.nayasantha.api.subscription.SubscriptionService subscriptions;
     private final com.nayasantha.api.push.PushSender pushSender;
+    private final com.nayasantha.api.user.UserRepository users;
+    private final com.nayasantha.api.device.UserDeviceRepository devices;
+    private final com.nayasantha.api.notification.NotificationService notifications;
 
     public OpsController(OpsService ops, WeeklyCycleService cycle,
                          com.nayasantha.api.subscription.SubscriptionService subscriptions,
-                         com.nayasantha.api.push.PushSender pushSender) {
+                         com.nayasantha.api.push.PushSender pushSender,
+                         com.nayasantha.api.user.UserRepository users,
+                         com.nayasantha.api.device.UserDeviceRepository devices,
+                         com.nayasantha.api.notification.NotificationService notifications) {
         this.ops = ops;
         this.cycle = cycle;
         this.subscriptions = subscriptions;
         this.pushSender = pushSender;
+        this.users = users;
+        this.devices = devices;
+        this.notifications = notifications;
+    }
+
+    /** Send a REAL test push (+ in-app notification) to a customer by mobile. (admin-only) */
+    @PostMapping("/push-user")
+    public ApiResponse<Map<String, Object>> pushUser(@RequestParam String mobile) {
+        var user = users.findByMobile(mobile)
+                .orElseThrow(() -> com.nayasantha.api.common.ApiException.notFound("User " + mobile));
+        int deviceCount = devices.findByUserId(user.getId()).size();
+        notifications.create(user.getId(), "TEST", "NayaSantha",
+                "🎉 Your push notifications are working.", null);
+        Map<String, Object> out = new java.util.LinkedHashMap<>();
+        out.put("mobile", mobile);
+        out.put("devices", deviceCount);
+        out.put("sender", pushSender.getClass().getSimpleName());
+        out.put("note", deviceCount == 0
+                ? "No devices registered for this user — open the app, log in, and tap Enable notifications first."
+                : "Sent to " + deviceCount + " device(s).");
+        return ApiResponse.of(out);
     }
 
     /** Diagnostic: is FCM active and do the credentials authenticate? (admin-only) */

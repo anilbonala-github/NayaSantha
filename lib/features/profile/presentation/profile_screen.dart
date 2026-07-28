@@ -7,6 +7,7 @@ import '../../../core/api/api_failure.dart';
 import '../../../core/router/routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/push/fcm_service.dart';
 import '../../../core/widgets/common.dart';
 import '../../../state/app_state.dart';
 import '../../auth/presentation/auth_controller.dart';
@@ -54,6 +55,15 @@ class ProfileScreen extends ConsumerWidget {
                   _tile(context, Icons.auto_awesome_outlined, 'AI weekly plan', Routes.weeklyPlan),
                   const Divider(height: 1),
                   _tile(context, Icons.settings_outlined, 'Settings', Routes.settings),
+                  const Divider(height: 1),
+                  ListTile(
+                    leading: const Icon(Icons.notifications_active_outlined,
+                        color: AppColors.textSecondary),
+                    title: const Text('Enable push notifications'),
+                    subtitle: const Text('Register this device to receive alerts'),
+                    trailing: const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+                    onTap: () => _enablePush(context, ref),
+                  ),
                 ]),
               ),
               if (profile.isAdmin) ...<Widget>[
@@ -158,6 +168,24 @@ class ProfileScreen extends ConsumerWidget {
       title: Text(label),
       trailing: const Icon(Icons.chevron_right, color: AppColors.textSecondary),
       onTap: () => context.go(route),
+    );
+  }
+
+  Future<void> _enablePush(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(const SnackBar(content: Text('Enabling notifications…')));
+    final result = await FcmService.registerToken(ref.read(apiClientProvider));
+    messenger.hideCurrentSnackBar();
+    if (!context.mounted) return;
+    showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Notifications'),
+        content: Text(result),
+        actions: <Widget>[
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK')),
+        ],
+      ),
     );
   }
 
