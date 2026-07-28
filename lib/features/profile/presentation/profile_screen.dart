@@ -179,11 +179,12 @@ class ProfileScreen extends ConsumerWidget {
     if (!context.mounted) return;
     showDialog<void>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogCtx) => AlertDialog(
         title: const Text('Notifications'),
         content: Text(result),
         actions: <Widget>[
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK')),
+          // Pop the dialog's own navigator, not the shell's (which blanked the page).
+          TextButton(onPressed: () => Navigator.of(dialogCtx).pop(), child: const Text('OK')),
         ],
       ),
     );

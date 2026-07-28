@@ -58,8 +58,17 @@ class FcmService {
       if (kIsWeb && _webVapidKey.isEmpty) {
         return 'Web push key not configured yet.';
       }
-      // getToken can transiently fail with SERVICE_NOT_AVAILABLE (Play services /
-      // network not ready) — retry a few times with backoff before giving up.
+      // iOS/macOS: an FCM token can't be minted until the APNs token is set,
+      // which arrives asynchronously after launch — wait for it first.
+      if (!kIsWeb &&
+          (defaultTargetPlatform == TargetPlatform.iOS ||
+              defaultTargetPlatform == TargetPlatform.macOS)) {
+        for (int i = 0; i < 8; i++) {
+          if (await messaging.getAPNSToken() != null) break;
+          await Future.delayed(Duration(seconds: 1 + i));
+        }
+      }
+      // getToken can also transiently fail (services/network not ready) — retry.
       String? token;
       Object? lastError;
       for (int attempt = 1; attempt <= 4; attempt++) {
@@ -75,9 +84,9 @@ class FcmService {
       }
       if (token == null || token.isEmpty) {
         final reason = lastError != null ? ' ($lastError)' : '';
-        return 'Couldn’t get a push token yet$reason. This is usually a temporary '
-            'Google Play services/network issue — try again on mobile data, update '
-            'Google Play services, or reboot, then tap Enable again.';
+        return 'Couldn’t get a push token yet$reason. This is usually temporary — '
+            'wait a few seconds on a stable connection and tap Enable again (a reboot '
+            'clears it if it persists).';
       }
 
       await _post(client, token);
