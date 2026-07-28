@@ -55,6 +55,9 @@ public class Coupon {
     @Column(name = "new_users_only", nullable = false)
     private boolean newUsersOnly = false;
 
+    @Column(name = "members_only", nullable = false)
+    private boolean membersOnly = false;
+
     private String tint;
 
     @Column(name = "sort_order", nullable = false)

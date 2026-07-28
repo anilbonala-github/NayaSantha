@@ -39,4 +39,14 @@ public class SubscriptionPlan {
 
     @Column(nullable = false)
     private boolean active = true;
+
+    // Enforced perks.
+    @Column(name = "free_delivery", nullable = false)
+    private boolean freeDelivery = false;
+
+    @Column(name = "member_offers", nullable = false)
+    private boolean memberOffers = false;
+
+    @Column(name = "priority_slot", nullable = false)
+    private boolean prioritySlot = false;
 }

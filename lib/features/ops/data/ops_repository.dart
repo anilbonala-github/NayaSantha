@@ -114,6 +114,8 @@ class OpsRepository {
     double? capPercent,
     int? varianceThresholdPercent,
     String? deliverySlot,
+    double? deliveryFee,
+    String? priorityDeliverySlot,
   }) async {
     try {
       final data = await _client.patch('/ops/settings', body: {
@@ -121,6 +123,8 @@ class OpsRepository {
         if (capPercent != null) 'capPercent': capPercent,
         if (varianceThresholdPercent != null) 'varianceThresholdPercent': varianceThresholdPercent,
         if (deliverySlot != null) 'deliverySlot': deliverySlot,
+        if (deliveryFee != null) 'deliveryFee': deliveryFee,
+        if (priorityDeliverySlot != null) 'priorityDeliverySlot': priorityDeliverySlot,
       });
       return OpsSettings.fromJson(data as Map<String, dynamic>);
     } on DioException catch (e) {

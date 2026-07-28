@@ -45,6 +45,9 @@ public class Order extends BaseEntity {
     @Column(name = "wallet_applied", nullable = false)
     private BigDecimal walletApplied = BigDecimal.ZERO;
 
+    @Column(name = "delivery_fee", nullable = false)
+    private BigDecimal deliveryFee = BigDecimal.ZERO;
+
     @Column(name = "delivery_slot")
     private String deliverySlot;
 
@@ -62,12 +65,13 @@ public class Order extends BaseEntity {
     @Column(name = "community")
     private String community;
 
-    /** What the customer owes after any coupon discount, floored at zero. */
+    /** What the customer owes: settled basket less coupon, floored at zero, plus delivery fee. */
     @Transient
     public BigDecimal getAmountPayable() {
         if (finalTotal == null) return null;
         BigDecimal d = discountAmount == null ? BigDecimal.ZERO : discountAmount;
-        return finalTotal.subtract(d).max(BigDecimal.ZERO);
+        BigDecimal fee = deliveryFee == null ? BigDecimal.ZERO : deliveryFee;
+        return finalTotal.subtract(d).max(BigDecimal.ZERO).add(fee);
     }
 
     /** What the payment gateway charges: amount payable less any wallet applied, floored at zero. */

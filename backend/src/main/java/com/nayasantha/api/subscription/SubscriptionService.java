@@ -60,6 +60,19 @@ public class SubscriptionService {
                 .map(this::toDto).orElse(null);
     }
 
+    /**
+     * The enforced perks for a user. A PAST_DUE membership keeps its perks (grace
+     * period); Basic / expired / none get {@link MemberPerks#BASIC}.
+     */
+    @Transactional(readOnly = true)
+    public MemberPerks perksOf(UUID userId) {
+        return subs.findFirstByUserIdAndStatusInOrderByCreatedAtDesc(userId,
+                        List.of(Subscription.Status.ACTIVE, Subscription.Status.PAST_DUE))
+                .flatMap(s -> plans.findById(s.getPlanId()))
+                .map(p -> new MemberPerks(p.getCode(), p.isFreeDelivery(), p.isMemberOffers(), p.isPrioritySlot()))
+                .orElse(MemberPerks.BASIC);
+    }
+
     @Transactional
     public SubscriptionDto subscribe(UUID userId, String planCode) {
         SubscriptionPlan plan = plans.findByCode(planCode)

@@ -30,6 +30,9 @@ public class SettingsService {
         if (req.capPercent() != null) s.setCapPercent(req.capPercent());
         if (req.varianceThresholdPercent() != null) s.setVarianceThresholdPercent(req.varianceThresholdPercent());
         if (req.deliverySlot() != null && !req.deliverySlot().isBlank()) s.setDeliverySlot(req.deliverySlot());
+        if (req.deliveryFee() != null) s.setDeliveryFee(req.deliveryFee());
+        if (req.priorityDeliverySlot() != null && !req.priorityDeliverySlot().isBlank())
+            s.setPriorityDeliverySlot(req.priorityDeliverySlot());
         return repo.save(s);
     }
 
@@ -45,5 +48,13 @@ public class SettingsService {
 
     public String deliverySlot() {
         return current().getDeliverySlot();
+    }
+
+    public java.math.BigDecimal deliveryFee() {
+        return current().getDeliveryFee();
+    }
+
+    public String priorityDeliverySlot() {
+        return current().getPriorityDeliverySlot();
     }
 }

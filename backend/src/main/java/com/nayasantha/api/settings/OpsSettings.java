@@ -25,4 +25,10 @@ public class OpsSettings extends BaseEntity {
 
     @Column(name = "delivery_slot", nullable = false)
     private String deliverySlot = "Sun 2:00-8:00 PM";
+
+    @Column(name = "delivery_fee", nullable = false)
+    private BigDecimal deliveryFee = new BigDecimal("29");
+
+    @Column(name = "priority_delivery_slot", nullable = false)
+    private String priorityDeliverySlot = "Sun 8:00-11:00 AM";
 }

@@ -267,18 +267,24 @@ class OpsSettings {
     required this.capPercent,
     required this.varianceThresholdPercent,
     required this.deliverySlot,
+    this.deliveryFee = 0,
+    this.priorityDeliverySlot = '',
   });
 
   final int bufferPercent;
   final double capPercent;
   final int varianceThresholdPercent;
   final String deliverySlot;
+  final double deliveryFee;
+  final String priorityDeliverySlot;
 
   factory OpsSettings.fromJson(Map<String, dynamic> j) => OpsSettings(
         bufferPercent: (j['bufferPercent'] as num?)?.toInt() ?? 5,
         capPercent: _d(j['capPercent']),
         varianceThresholdPercent: (j['varianceThresholdPercent'] as num?)?.toInt() ?? 10,
         deliverySlot: j['deliverySlot'] as String? ?? '',
+        deliveryFee: _d(j['deliveryFee']),
+        priorityDeliverySlot: j['priorityDeliverySlot'] as String? ?? '',
       );
 }
 

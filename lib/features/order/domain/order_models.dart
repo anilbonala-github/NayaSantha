@@ -18,6 +18,7 @@ class CustomerOrder {
     this.amountPayable,
     this.walletApplied = 0,
     this.gatewayPayable,
+    this.deliveryFee = 0,
     this.items = const <OrderLine>[],
     this.exception,
   });
@@ -38,6 +39,7 @@ class CustomerOrder {
   final double? amountPayable;
   final double walletApplied;
   final double? gatewayPayable;
+  final double deliveryFee;
   final List<OrderLine> items;
   final OrderException? exception;
 
@@ -72,6 +74,7 @@ class CustomerOrder {
         amountPayable: _d(j['amountPayable']),
         walletApplied: _d(j['walletApplied']) ?? 0,
         gatewayPayable: _d(j['gatewayPayable']),
+        deliveryFee: _d(j['deliveryFee']) ?? 0,
         items: (j['items'] as List?)
                 ?.map((e) => OrderLine.fromJson(e as Map<String, dynamic>))
                 .toList() ??

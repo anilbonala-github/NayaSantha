@@ -11,6 +11,7 @@ class Coupon {
     this.minBasket = 0,
     this.maxDiscount,
     this.newUsersOnly = false,
+    this.membersOnly = false,
     this.tint,
     this.validUntil,
   });
@@ -24,6 +25,7 @@ class Coupon {
   final double minBasket;
   final double? maxDiscount;
   final bool newUsersOnly;
+  final bool membersOnly;
   final String? tint;
   final DateTime? validUntil;
 
@@ -39,6 +41,7 @@ class Coupon {
         minBasket: _d(j['minBasket']),
         maxDiscount: j['maxDiscount'] == null ? null : _d(j['maxDiscount']),
         newUsersOnly: j['newUsersOnly'] as bool? ?? false,
+        membersOnly: j['membersOnly'] as bool? ?? false,
         tint: j['tint'] as String?,
         validUntil: j['validUntil'] == null
             ? null

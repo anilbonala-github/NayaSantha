@@ -165,6 +165,9 @@ class _OfferCard extends StatelessWidget {
                       if (coupon.newUsersOnly)
                         const StatusChip(
                             label: 'New households', color: AppColors.info),
+                      if (coupon.membersOnly)
+                        const StatusChip(
+                            label: 'Plus / Family', color: AppColors.turmeric),
                       if (coupon.minBasket > 0)
                         StatusChip(
                             label: 'Min ${money(coupon.minBasket)}',

@@ -48,7 +48,7 @@ public class CouponService {
      */
     @Transactional(readOnly = true)
     public Applied validateAndCompute(String code, UUID userId, BigDecimal payable,
-                                      boolean isNewUser, UUID excludeOrderId) {
+                                      boolean isNewUser, boolean isMember, UUID excludeOrderId) {
         Coupon c = coupons.findByCodeIgnoreCase(code.trim())
                 .filter(Coupon::isActive)
                 .orElseThrow(() -> bad("That coupon code isn't valid."));
@@ -58,6 +58,9 @@ public class CouponService {
         }
         if (c.isNewUsersOnly() && !isNewUser) {
             throw bad("This coupon is for first-time households only.");
+        }
+        if (c.isMembersOnly() && !isMember) {
+            throw bad("This offer is for Plus or Family members.");
         }
         if (redemptions.countByCouponIdAndUserIdAndOrderIdNot(c.getId(), userId, excludeOrderId)
                 >= c.getPerUserLimit()) {
@@ -108,7 +111,7 @@ public class CouponService {
     private CouponDto toDto(Coupon c) {
         return new CouponDto(c.getCode(), c.getTitle(), c.getDescription(), summary(c),
                 c.getDiscountType(), c.getDiscountValue(), c.getMinBasket(), c.getMaxDiscount(),
-                c.isNewUsersOnly(), c.getTint(), c.getValidUntil());
+                c.isNewUsersOnly(), c.isMembersOnly(), c.getTint(), c.getValidUntil());
     }
 
     private String summary(Coupon c) {

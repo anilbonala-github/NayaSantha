@@ -34,7 +34,7 @@ public final class OrderDtos {
                            List<OrderItemDto> items, ExceptionDto exception, Instant createdAt, Long version,
                            BigDecimal refundedAmount, List<RefundDto> refunds,
                            String couponCode, BigDecimal discountAmount, BigDecimal amountPayable,
-                           BigDecimal walletApplied, BigDecimal gatewayPayable) {}
+                           BigDecimal walletApplied, BigDecimal gatewayPayable, BigDecimal deliveryFee) {}
 
     public record RefundDto(UUID id, BigDecimal amount, String type, String reason,
                             String reference, String status, Instant createdAt) {}

@@ -229,6 +229,12 @@ class _OrderBillScreenState extends ConsumerState<OrderBillScreen> {
                                 '−₹${o.discountAmount.toStringAsFixed(0)}',
                                 color: AppColors.success),
                           ),
+                        Padding(
+                          padding: const EdgeInsets.only(top: Gap.sm),
+                          child: o.deliveryFee > 0
+                              ? _row('Delivery fee', '+₹${o.deliveryFee.toStringAsFixed(0)}')
+                              : _row('Delivery', 'Free', color: AppColors.success),
+                        ),
                         if (o.hasWallet)
                           Padding(
                             padding: const EdgeInsets.only(top: Gap.sm),
@@ -236,13 +242,12 @@ class _OrderBillScreenState extends ConsumerState<OrderBillScreen> {
                                 '−₹${o.walletApplied.toStringAsFixed(0)}',
                                 color: AppColors.info),
                           ),
-                        if (o.hasCoupon || o.hasWallet)
-                          Padding(
-                            padding: const EdgeInsets.only(top: Gap.sm),
-                            child: _row(o.hasWallet ? 'To pay now' : 'Amount payable',
-                                '₹${(o.toPay ?? 0).toStringAsFixed(0)}',
-                                bold: true),
-                          ),
+                        Padding(
+                          padding: const EdgeInsets.only(top: Gap.sm),
+                          child: _row(o.hasWallet ? 'To pay now' : 'Amount payable',
+                              '₹${(o.toPay ?? 0).toStringAsFixed(0)}',
+                              bold: true),
+                        ),
                         if (o.hasRefund)
                           Padding(
                             padding: const EdgeInsets.only(top: Gap.sm),

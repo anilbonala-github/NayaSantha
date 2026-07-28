@@ -11,8 +11,8 @@ public final class CouponDtos {
 
     public record CouponDto(String code, String title, String description, String summary,
                             String discountType, BigDecimal discountValue, BigDecimal minBasket,
-                            BigDecimal maxDiscount, boolean newUsersOnly, String tint,
-                            Instant validUntil) {}
+                            BigDecimal maxDiscount, boolean newUsersOnly, boolean membersOnly,
+                            String tint, Instant validUntil) {}
 
     public record ApplyCouponRequest(@NotBlank String code) {}
 }

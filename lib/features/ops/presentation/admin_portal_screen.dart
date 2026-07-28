@@ -48,6 +48,8 @@ class _AdminPortalScreenState extends ConsumerState<AdminPortalScreen> {
   final TextEditingController _capCtrl = TextEditingController();
   final TextEditingController _varianceCtrl = TextEditingController();
   final TextEditingController _slotCtrl = TextEditingController();
+  final TextEditingController _feeCtrl = TextEditingController();
+  final TextEditingController _priorityCtrl = TextEditingController();
   bool _settingsSeeded = false;
   bool _busy = false;
 
@@ -60,6 +62,8 @@ class _AdminPortalScreenState extends ConsumerState<AdminPortalScreen> {
     _capCtrl.dispose();
     _varianceCtrl.dispose();
     _slotCtrl.dispose();
+    _feeCtrl.dispose();
+    _priorityCtrl.dispose();
     super.dispose();
   }
 
@@ -800,6 +804,8 @@ class _AdminPortalScreenState extends ConsumerState<AdminPortalScreen> {
           _capCtrl.text = s.capPercent.toStringAsFixed(2);
           _varianceCtrl.text = '${s.varianceThresholdPercent}';
           _slotCtrl.text = s.deliverySlot;
+          _feeCtrl.text = s.deliveryFee.toStringAsFixed(0);
+          _priorityCtrl.text = s.priorityDeliverySlot;
           _settingsSeeded = true;
         }
         return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: <Widget>[
@@ -818,6 +824,12 @@ class _AdminPortalScreenState extends ConsumerState<AdminPortalScreen> {
             const Divider(height: Gap.xl, color: AppColors.border),
             _settingField(_slotCtrl, 'Delivery slot', '',
                 'Shown on new orders (e.g. "Sun 2:00-8:00 PM").', number: false),
+            const Divider(height: Gap.xl, color: AppColors.border),
+            _settingField(_feeCtrl, 'Delivery fee', '₹',
+                'Charged per order; waived for Plus/Family (free delivery).'),
+            const Divider(height: Gap.xl, color: AppColors.border),
+            _settingField(_priorityCtrl, 'Priority delivery slot', '',
+                'Earlier window for members with the priority-slot perk.', number: false),
           ])),
           const SizedBox(height: Gap.lg),
           SizedBox(width: double.infinity, child: FilledButton.icon(
@@ -867,6 +879,8 @@ class _AdminPortalScreenState extends ConsumerState<AdminPortalScreen> {
             capPercent: double.tryParse(_capCtrl.text.trim()),
             varianceThresholdPercent: int.tryParse(_varianceCtrl.text.trim()),
             deliverySlot: _slotCtrl.text.trim().isEmpty ? null : _slotCtrl.text.trim(),
+            deliveryFee: double.tryParse(_feeCtrl.text.trim()),
+            priorityDeliverySlot: _priorityCtrl.text.trim().isEmpty ? null : _priorityCtrl.text.trim(),
           );
       ref.invalidate(settingsProvider);
       _snack('Settings saved');

@@ -47,6 +47,7 @@ public class OrderService {
     private final com.nayasantha.api.settings.SettingsService settings;
     private final com.nayasantha.api.wallet.WalletService wallet;
     private final com.nayasantha.api.coupon.CouponService coupons;
+    private final com.nayasantha.api.subscription.SubscriptionService subscriptions;
 
     public OrderService(OrderRepository orders, OrderItemRepository items, PriceConsentRepository consents,
                         PaymentAuthorizationRepository payments, PriceExceptionRepository exceptions,
@@ -57,7 +58,8 @@ public class OrderService {
                         com.nayasantha.api.payment.RazorpayCheckoutService razorpayCheckout,
                         com.nayasantha.api.settings.SettingsService settings,
                         com.nayasantha.api.wallet.WalletService wallet,
-                        com.nayasantha.api.coupon.CouponService coupons) {
+                        com.nayasantha.api.coupon.CouponService coupons,
+                        com.nayasantha.api.subscription.SubscriptionService subscriptions) {
         this.orders = orders;
         this.items = items;
         this.consents = consents;
@@ -74,6 +76,12 @@ public class OrderService {
         this.settings = settings;
         this.wallet = wallet;
         this.coupons = coupons;
+        this.subscriptions = subscriptions;
+    }
+
+    /** The delivery fee for a customer's order — waived for members with free delivery. */
+    private BigDecimal deliveryFeeFor(UUID userId) {
+        return subscriptions.perksOf(userId).freeDelivery() ? BigDecimal.ZERO : settings.deliveryFee();
     }
 
     private static String money(BigDecimal v) {
@@ -99,7 +107,9 @@ public class OrderService {
         order.setPricePreference(req.pricePreference());
         order.setEstimatedTotal(plan.getEstimatedTotal());
         order.setMaximumPayable(maxPayable);
-        order.setDeliverySlot(settings.deliverySlot());
+        // Members with the priority-slot perk get the earlier delivery window.
+        order.setDeliverySlot(subscriptions.perksOf(userId).prioritySlot()
+                ? settings.priorityDeliverySlot() : settings.deliverySlot());
         // Snapshot the delivery community for packing/delivery waves (Vol2A §7.4).
         var defaultAddress = addresses.findByUserIdOrderByIsDefaultDescCreatedAtDesc(userId)
                 .stream().findFirst().orElse(null);
@@ -235,6 +245,9 @@ public class OrderService {
         } else {
             raiseException(order, finalTotal);   // KEEP_EXACT / ASK_BEFORE_CHANGE
         }
+        if (order.getStatus() == Order.Status.FINALIZED) {
+            order.setDeliveryFee(deliveryFeeFor(order.getUserId()));   // waived for members
+        }
         return toDto(orders.save(order));
     }
 
@@ -249,6 +262,7 @@ public class OrderService {
         switch (decision) {
             case "ACCEPT" -> {                       // extra consent to charge above cap
                 order.setStatus(Order.Status.FINALIZED);
+                order.setDeliveryFee(deliveryFeeFor(order.getUserId()));
                 if (ex != null) { ex.setResolution("ACCEPTED"); exceptions.save(ex); }
             }
             case "REMOVE_EXPENSIVE" -> {
@@ -256,6 +270,7 @@ public class OrderService {
                         "Removed at your request: over your limit");
                 order.setFinalTotal(ft);
                 order.setStatus(Order.Status.FINALIZED);
+                order.setDeliveryFee(deliveryFeeFor(order.getUserId()));
                 if (ex != null) { ex.setResolution("REMOVED"); exceptions.save(ex); }
             }
             case "CANCEL" -> {
@@ -516,8 +531,9 @@ public class OrderService {
         }
         boolean isNewUser = orders.countByUserIdAndStatusIn(userId,
                 List.of(Order.Status.PAID, Order.Status.DELIVERED)) == 0;
+        boolean isMember = subscriptions.perksOf(userId).memberOffers();
         com.nayasantha.api.coupon.CouponService.Applied applied =
-                coupons.validateAndCompute(code, userId, order.getFinalTotal(), isNewUser, orderId);
+                coupons.validateAndCompute(code, userId, order.getFinalTotal(), isNewUser, isMember, orderId);
         coupons.recordRedemption(applied.coupon(), userId, orderId, applied.discount());
         releaseWalletHold(order);   // amount payable changed; re-apply wallet afterwards
         order.setCouponCode(applied.coupon().getCode());
@@ -679,6 +695,6 @@ public class OrderService {
                 order.getDeliverySlot(), order.getFulfillmentStage().name(), paymentStatus, itemDtos, exDto,
                 order.getCreatedAt(), order.getVersion(), refundedAmount, refundDtos,
                 order.getCouponCode(), order.getDiscountAmount(), order.getAmountPayable(),
-                order.getWalletApplied(), order.getGatewayPayable());
+                order.getWalletApplied(), order.getGatewayPayable(), order.getDeliveryFee());
     }
 }

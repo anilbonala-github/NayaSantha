@@ -33,5 +33,11 @@ public final class SubscriptionDtos {
     public record RenewalResultDto(int processed, int renewed, int pastDue, int expired,
                                    BigDecimal charged) {}
 
+    /** A user's enforced perks (from their current membership, or all-false for Basic). */
+    public record MemberPerks(String planCode, boolean freeDelivery, boolean memberOffers,
+                              boolean prioritySlot) {
+        public static final MemberPerks BASIC = new MemberPerks("FREE", false, false, false);
+    }
+
     public record SubscribeRequest(@NotBlank String planCode) {}
 }
