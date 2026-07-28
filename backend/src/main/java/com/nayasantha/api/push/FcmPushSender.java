@@ -64,6 +64,31 @@ public class FcmPushSender implements PushSender {
         }
     }
 
+    /** True once Firebase initialised from the supplied credentials. */
+    public boolean isInitialised() {
+        return messaging != null;
+    }
+
+    /**
+     * Admin diagnostic: dry-run a send (validates auth + message, delivers nothing).
+     * A valid credential returns an INVALID_ARGUMENT/UNREGISTERED token error; a bad
+     * credential returns an auth error — so this confirms FIREBASE_CREDENTIALS_JSON works.
+     */
+    public String dryRun(String token) {
+        if (messaging == null) return "not-initialised — check FIREBASE_CREDENTIALS_JSON";
+        try {
+            Message msg = Message.builder()
+                    .setToken(token)
+                    .setNotification(Notification.builder().setTitle("NayaSantha test").setBody("dry run").build())
+                    .build();
+            return "ok — credentials valid, id=" + messaging.send(msg, true);
+        } catch (FirebaseMessagingException e) {
+            return "sent to Firebase — code=" + e.getMessagingErrorCode() + " (" + e.getMessage() + ")";
+        } catch (Exception e) {
+            return "error: " + e.getMessage();
+        }
+    }
+
     @Override
     public void sendToUser(UUID userId, String title, String body) {
         if (messaging == null) return;

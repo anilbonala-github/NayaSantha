@@ -23,12 +23,29 @@ public class OpsController {
     private final OpsService ops;
     private final WeeklyCycleService cycle;
     private final com.nayasantha.api.subscription.SubscriptionService subscriptions;
+    private final com.nayasantha.api.push.PushSender pushSender;
 
     public OpsController(OpsService ops, WeeklyCycleService cycle,
-                         com.nayasantha.api.subscription.SubscriptionService subscriptions) {
+                         com.nayasantha.api.subscription.SubscriptionService subscriptions,
+                         com.nayasantha.api.push.PushSender pushSender) {
         this.ops = ops;
         this.cycle = cycle;
         this.subscriptions = subscriptions;
+        this.pushSender = pushSender;
+    }
+
+    /** Diagnostic: is FCM active and do the credentials authenticate? (admin-only) */
+    @PostMapping("/push-test")
+    public ApiResponse<Map<String, Object>> pushTest(@RequestParam(required = false) String token) {
+        Map<String, Object> out = new java.util.LinkedHashMap<>();
+        out.put("sender", pushSender.getClass().getSimpleName());
+        if (pushSender instanceof com.nayasantha.api.push.FcmPushSender fcm) {
+            out.put("initialised", fcm.isInitialised());
+            out.put("dryRun", fcm.dryRun(token != null ? token : "diagnostic-dummy-token"));
+        } else {
+            out.put("note", "FCM disabled — LogPushSender active (set FCM_ENABLED=true)");
+        }
+        return ApiResponse.of(out);
     }
 
     /** Manually send the Saturday cutoff reminders (fallback when the cron can't run). */
