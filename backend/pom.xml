@@ -89,6 +89,13 @@
             <optional>true</optional>
         </dependency>
 
+        <!-- Firebase Admin SDK (FCM push). Inert until push.fcm.enabled=true. -->
+        <dependency>
+            <groupId>com.google.firebase</groupId>
+            <artifactId>firebase-admin</artifactId>
+            <version>9.3.0</version>
+        </dependency>
+
         <!-- Testing -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

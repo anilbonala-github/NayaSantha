@@ -53,6 +53,12 @@ nayasantha:
       enabled: ${RAZORPAY_ENABLED:false}
       key-id: ${RAZORPAY_KEY_ID:}
       key-secret: ${RAZORPAY_KEY_SECRET:}
+  push:
+    fcm:
+      # false => LogPushSender (logs only). Set FCM_ENABLED=true + FIREBASE_CREDENTIALS_JSON
+      # (the full service-account JSON) to send real Firebase Cloud Messaging pushes.
+      enabled: ${FCM_ENABLED:false}
+      credentials-json: ${FIREBASE_CREDENTIALS_JSON:}
   gemini:
     # Empty key => deterministic fallback planner. Set GEMINI_API_KEY to enable.
     api-key: ${GEMINI_API_KEY:}
