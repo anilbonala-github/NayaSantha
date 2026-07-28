@@ -5,6 +5,8 @@ plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+    // Firebase (google-services.json). Must come after the Android plugin.
+    id("com.google.gms.google-services")
 }
 
 // Load release signing config from android/key.properties (git-ignored).
@@ -31,7 +33,8 @@ android {
         applicationId = "com.nayasantha.app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        // Firebase requires API 23+; otherwise follow Flutter's default.
+        minSdk = maxOf(23, flutter.minSdkVersion)
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
