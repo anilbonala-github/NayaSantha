@@ -23,8 +23,10 @@ workflows:
     environment:
       android_signing:
         - nayasantha_keystore
-      groups:
-        - google_play            # provides GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+      # Re-enable after creating a 'google_play' variable group holding
+      # GCLOUD_SERVICE_ACCOUNT_CREDENTIALS (Play Console service-account JSON).
+      # groups:
+      #   - google_play
       flutter: stable
     triggering:
       events:
@@ -44,10 +46,33 @@ workflows:
       - build/**/outputs/bundle/**/*.aab
       - build/**/outputs/**/mapping.txt
     publishing:
-      google_play:
-        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
-        track: internal          # internal → alpha → beta → production
-        submit_as_draft: true    # safe: creates a draft, you release manually
+      # Re-enable together with the 'google_play' group above.
+      # google_play:
+      #   credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+      #   track: internal          # internal → alpha → beta → production
+      #   submit_as_draft: true    # safe: creates a draft, you release manually
+      email:
+        recipients:
+          - anil.bonala.svp@gmail.com
+
+  # ─────────────── ANDROID TEST (installable debug APK) ───────────────
+  # No keystore / Play account / variable groups needed. Manual trigger.
+  # Produces an app-debug.apk you can sideload to test push end-to-end.
+  android-test:
+    name: Android Test APK
+    <<: *instance
+    environment:
+      flutter: stable
+    scripts:
+      - name: Flutter pub get
+        script: flutter pub get
+      - name: Build installable debug APK
+        script: |
+          flutter build apk --debug \
+            --dart-define=API_BASE_URL=https://nayasantha-api.onrender.com
+    artifacts:
+      - build/**/outputs/**/*.apk
+    publishing:
       email:
         recipients:
           - anil.bonala.svp@gmail.com
