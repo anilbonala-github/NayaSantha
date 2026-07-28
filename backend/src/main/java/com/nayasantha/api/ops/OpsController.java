@@ -22,10 +22,13 @@ public class OpsController {
 
     private final OpsService ops;
     private final WeeklyCycleService cycle;
+    private final com.nayasantha.api.subscription.SubscriptionService subscriptions;
 
-    public OpsController(OpsService ops, WeeklyCycleService cycle) {
+    public OpsController(OpsService ops, WeeklyCycleService cycle,
+                         com.nayasantha.api.subscription.SubscriptionService subscriptions) {
         this.ops = ops;
         this.cycle = cycle;
+        this.subscriptions = subscriptions;
     }
 
     /** Manually send the Saturday cutoff reminders (fallback when the cron can't run). */
@@ -38,6 +41,12 @@ public class OpsController {
     @PostMapping("/run-cutoff")
     public ApiResponse<Map<String, Integer>> runCutoff() {
         return ApiResponse.of(Map.of("ordersLocked", cycle.runCutoff()));
+    }
+
+    /** Manually run subscription billing — renew memberships due from the wallet. */
+    @PostMapping("/run-subscription-billing")
+    public ApiResponse<com.nayasantha.api.subscription.SubscriptionDtos.RenewalResultDto> runSubscriptionBilling() {
+        return ApiResponse.of(subscriptions.renewDue());
     }
 
     /** Cutoff snapshot: locked orders, households, totals, price-capture progress. */

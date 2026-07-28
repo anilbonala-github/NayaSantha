@@ -41,4 +41,11 @@ public class SubscriptionController {
         subscriptions.cancel(CurrentUser.id());
         return ApiResponse.of(Map.of("status", "cancelled"));
     }
+
+    /** The customer's subscription billing history (most recent first). */
+    @GetMapping("/subscriptions/payments")
+    public ApiResponse<List<PaymentDto>> payments(@RequestParam(defaultValue = "0") int page,
+                                                  @RequestParam(defaultValue = "20") int size) {
+        return ApiResponse.of(subscriptions.paymentHistory(CurrentUser.id(), page, size));
+    }
 }

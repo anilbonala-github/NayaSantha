@@ -40,5 +40,5 @@ public class WalletTransaction {
     @Column(name = "created_at", nullable = false)
     private Instant createdAt = Instant.now();
 
-    public enum Type { REFUND, PROMO, REFERRAL, TOPUP, ORDER_PAYMENT, ADJUSTMENT }
+    public enum Type { REFUND, PROMO, REFERRAL, TOPUP, ORDER_PAYMENT, SUBSCRIPTION, ADJUSTMENT }
 }

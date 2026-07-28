@@ -37,5 +37,11 @@ public class Subscription extends BaseEntity {
     @Column(name = "cancelled_at")
     private Instant cancelledAt;
 
-    public enum Status { ACTIVE, CANCELLED, EXPIRED }
+    @Column(name = "last_billed_at")
+    private Instant lastBilledAt;
+
+    @Column(name = "failed_attempts", nullable = false)
+    private int failedAttempts = 0;
+
+    public enum Status { ACTIVE, PAST_DUE, CANCELLED, EXPIRED }
 }

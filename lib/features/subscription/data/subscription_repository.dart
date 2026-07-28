@@ -36,6 +36,15 @@ class SubscriptionRepository {
     }
   }
 
+  Future<List<SubscriptionPayment>> payments() async {
+    try {
+      final data = await _client.get('/subscriptions/payments') as List;
+      return data.map((e) => SubscriptionPayment.fromJson(e as Map<String, dynamic>)).toList();
+    } on DioException catch (e) {
+      throw ApiFailure.fromDio(e);
+    }
+  }
+
   Future<void> cancel() async {
     try {
       await _client.post('/subscriptions/cancel');

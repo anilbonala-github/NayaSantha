@@ -12,3 +12,6 @@ final membershipPlansProvider = FutureProvider<List<MembershipPlan>>(
 
 final currentSubscriptionProvider = FutureProvider<CurrentSubscription?>(
     (ref) => ref.watch(subscriptionRepositoryProvider).current());
+
+final subscriptionPaymentsProvider = FutureProvider<List<SubscriptionPayment>>(
+    (ref) => ref.watch(subscriptionRepositoryProvider).payments());

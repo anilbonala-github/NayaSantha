@@ -23,7 +23,15 @@ public final class SubscriptionDtos {
     }
 
     public record SubscriptionDto(UUID id, String planCode, String planName, String status,
-                                  String billingCycle, Instant startedAt, Instant renewsAt) {}
+                                  String billingCycle, BigDecimal pricePerMonth,
+                                  Instant startedAt, Instant renewsAt, Instant lastBilledAt) {}
+
+    public record PaymentDto(UUID id, String planCode, BigDecimal amount, String status,
+                             String reason, Instant periodStart, Instant periodEnd, Instant createdAt) {}
+
+    /** Outcome of a billing run (scheduled or admin-triggered). */
+    public record RenewalResultDto(int processed, int renewed, int pastDue, int expired,
+                                   BigDecimal charged) {}
 
     public record SubscribeRequest(@NotBlank String planCode) {}
 }
