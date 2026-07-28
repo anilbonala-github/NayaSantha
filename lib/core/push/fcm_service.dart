@@ -18,9 +18,10 @@ Future<void> _firebaseBackgroundHandler(RemoteMessage message) async {
 class FcmService {
   FcmService._();
 
-  /// Web push requires a VAPID key. Paste the "Web Push certificates" key pair
-  /// from Firebase → Cloud Messaging → Web configuration. Empty = web token skipped.
-  static const String _webVapidKey = '';
+  /// Web push VAPID key ("Web Push certificates" key pair, Firebase → Cloud
+  /// Messaging → Web configuration). Public value. Empty = web token skipped.
+  static const String _webVapidKey =
+      'BAhLB-oRVqbzP4frrqMRxdLKsHR-qaZUNOHhT9AguYfa8VFla_VxqZrabp7-Ley9MpMUPkKX31KS4wei7cnzdD0';
 
   static bool _initialised = false;
   static String? _lastToken;
