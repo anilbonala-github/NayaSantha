@@ -55,9 +55,10 @@ workflows:
         recipients:
           - anil.bonala.svp@gmail.com
 
-  # ─────────────── ANDROID TEST (installable debug APK) ───────────────
-  # No keystore / Play account / variable groups needed. Manual trigger.
-  # Produces an app-debug.apk you can sideload to test push end-to-end.
+  # ─────────────── ANDROID TEST (installable release APK) ───────────────
+  # No Play account / variable groups needed. Manual trigger. Release mode +
+  # per-ABI split → small (~15-20 MB) installable APKs. Sideload the
+  # app-arm64-v8a-release.apk (covers virtually all modern phones) to test push.
   android-test:
     name: Android Test APK
     <<: *instance
@@ -66,9 +67,9 @@ workflows:
     scripts:
       - name: Flutter pub get
         script: flutter pub get
-      - name: Build installable debug APK
+      - name: Build small installable release APKs (per ABI)
         script: |
-          flutter build apk --debug \
+          flutter build apk --release --split-per-abi \
             --dart-define=API_BASE_URL=https://nayasantha-api.onrender.com
     artifacts:
       - build/**/outputs/**/*.apk
