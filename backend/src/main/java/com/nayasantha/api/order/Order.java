@@ -42,6 +42,9 @@ public class Order extends BaseEntity {
     @Column(name = "coupon_code")
     private String couponCode;
 
+    @Column(name = "wallet_applied", nullable = false)
+    private BigDecimal walletApplied = BigDecimal.ZERO;
+
     @Column(name = "delivery_slot")
     private String deliverySlot;
 
@@ -59,12 +62,21 @@ public class Order extends BaseEntity {
     @Column(name = "community")
     private String community;
 
-    /** What the customer actually pays: final total less any coupon discount, floored at zero. */
+    /** What the customer owes after any coupon discount, floored at zero. */
     @Transient
     public BigDecimal getAmountPayable() {
         if (finalTotal == null) return null;
         BigDecimal d = discountAmount == null ? BigDecimal.ZERO : discountAmount;
         return finalTotal.subtract(d).max(BigDecimal.ZERO);
+    }
+
+    /** What the payment gateway charges: amount payable less any wallet applied, floored at zero. */
+    @Transient
+    public BigDecimal getGatewayPayable() {
+        BigDecimal payable = getAmountPayable();
+        if (payable == null) return null;
+        BigDecimal w = walletApplied == null ? BigDecimal.ZERO : walletApplied;
+        return payable.subtract(w).max(BigDecimal.ZERO);
     }
 
     public enum Status { CONFIRMED, LOCKED, PURCHASING, FINALIZED, AWAITING_APPROVAL, PAID, DELIVERED, CANCELLED }

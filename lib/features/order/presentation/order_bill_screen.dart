@@ -5,6 +5,7 @@ import '../../../core/api/api_failure.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/common.dart';
+import '../../wallet/presentation/wallet_providers.dart';
 import '../data/razorpay/razorpay_checkout.dart';
 import '../domain/order_models.dart';
 import 'order_providers.dart';
@@ -48,6 +49,7 @@ class _OrderBillScreenState extends ConsumerState<OrderBillScreen> {
       final order = await ref.read(orderRepositoryProvider).applyCoupon(o.id, code);
       if (mounted) {
         _couponController.clear();
+        ref.invalidate(walletProvider); // applying a coupon releases any wallet hold
         setState(() { _order = order; _busy = false; });
         _snack('Coupon applied');
       }
@@ -61,7 +63,39 @@ class _OrderBillScreenState extends ConsumerState<OrderBillScreen> {
     setState(() { _busy = true; _error = null; });
     try {
       final order = await ref.read(orderRepositoryProvider).removeCoupon(o.id);
-      if (mounted) setState(() { _order = order; _busy = false; });
+      if (mounted) {
+        ref.invalidate(walletProvider); // a coupon change releases any wallet hold
+        setState(() { _order = order; _busy = false; });
+      }
+    } on ApiFailure catch (f) {
+      if (mounted) setState(() => _busy = false);
+      _snack(f.userMessage, error: true);
+    }
+  }
+
+  Future<void> _applyWallet(CustomerOrder o) async {
+    setState(() { _busy = true; _error = null; });
+    try {
+      final order = await ref.read(orderRepositoryProvider).applyWallet(o.id);
+      if (mounted) {
+        ref.invalidate(walletProvider);
+        setState(() { _order = order; _busy = false; });
+        _snack('Wallet applied');
+      }
+    } on ApiFailure catch (f) {
+      if (mounted) setState(() => _busy = false);
+      _snack(f.userMessage, error: true);
+    }
+  }
+
+  Future<void> _removeWallet(CustomerOrder o) async {
+    setState(() { _busy = true; _error = null; });
+    try {
+      final order = await ref.read(orderRepositoryProvider).removeWallet(o.id);
+      if (mounted) {
+        ref.invalidate(walletProvider);
+        setState(() { _order = order; _busy = false; });
+      }
     } on ApiFailure catch (f) {
       if (mounted) setState(() => _busy = false);
       _snack(f.userMessage, error: true);
@@ -188,19 +222,27 @@ class _OrderBillScreenState extends ConsumerState<OrderBillScreen> {
                               color: o.savings! >= 0 ? AppColors.success : AppColors.textSecondary,
                             ),
                           ),
-                        if (o.hasCoupon) ...<Widget>[
+                        if (o.hasCoupon)
                           Padding(
                             padding: const EdgeInsets.only(top: Gap.sm),
                             child: _row('Coupon ${o.couponCode}',
                                 '−₹${o.discountAmount.toStringAsFixed(0)}',
                                 color: AppColors.success),
                           ),
+                        if (o.hasWallet)
                           Padding(
                             padding: const EdgeInsets.only(top: Gap.sm),
-                            child: _row('Amount payable', '₹${(o.payable ?? 0).toStringAsFixed(0)}',
+                            child: _row('Wallet applied',
+                                '−₹${o.walletApplied.toStringAsFixed(0)}',
+                                color: AppColors.info),
+                          ),
+                        if (o.hasCoupon || o.hasWallet)
+                          Padding(
+                            padding: const EdgeInsets.only(top: Gap.sm),
+                            child: _row(o.hasWallet ? 'To pay now' : 'Amount payable',
+                                '₹${(o.toPay ?? 0).toStringAsFixed(0)}',
                                 bold: true),
                           ),
-                        ],
                         if (o.hasRefund)
                           Padding(
                             padding: const EdgeInsets.only(top: Gap.sm),
@@ -215,6 +257,12 @@ class _OrderBillScreenState extends ConsumerState<OrderBillScreen> {
                   // Coupon entry (only when settled and ready to pay).
                   if (o.canApplyCoupon || o.hasCoupon) ...<Widget>[
                     _couponCard(o),
+                    const SizedBox(height: Gap.lg),
+                  ],
+
+                  // Wallet at checkout (only when settled and ready to pay).
+                  if (o.canUseWallet || o.hasWallet) ...<Widget>[
+                    _walletCard(o),
                     const SizedBox(height: Gap.lg),
                   ],
 
@@ -267,9 +315,12 @@ class _OrderBillScreenState extends ConsumerState<OrderBillScreen> {
               child: const Text('Cancel order')),
         ]);
       case 'FINALIZED':
+        final double toPay = o.toPay ?? 0;
         children.add(FilledButton(
           onPressed: _busy ? null : () => _payNow(o),
-          child: Text('Pay ${o.hasCoupon ? '' : 'final amount · '}₹${(o.payable ?? 0).toStringAsFixed(0)}'),
+          child: Text(toPay <= 0
+              ? 'Complete order · fully paid by wallet'
+              : 'Pay ${(o.hasCoupon || o.hasWallet) ? '' : 'final amount · '}₹${toPay.toStringAsFixed(0)}'),
         ));
       case 'PAID':
         children.add(Container(
@@ -346,6 +397,53 @@ class _OrderBillScreenState extends ConsumerState<OrderBillScreen> {
             child: const Text('Apply'),
           ),
         ]),
+      ]),
+    );
+  }
+
+  Widget _walletCard(CustomerOrder o) {
+    if (o.hasWallet) {
+      return NsCard(
+        color: AppColors.info.withValues(alpha: 0.08),
+        borderColor: AppColors.info.withValues(alpha: 0.4),
+        child: Row(children: <Widget>[
+          const Icon(Icons.account_balance_wallet, size: 20, color: AppColors.info),
+          const SizedBox(width: Gap.md),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: <Widget>[
+              Text('₹${o.walletApplied.toStringAsFixed(0)} from wallet',
+                  style: const TextStyle(fontWeight: FontWeight.w700)),
+              const Text('Applied to this order. The rest is charged at checkout.',
+                  style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
+            ]),
+          ),
+          if (!o.isPaid)
+            TextButton(
+              onPressed: _busy ? null : () => _removeWallet(o),
+              child: const Text('Remove'),
+            ),
+        ]),
+      );
+    }
+    // Offer to use wallet only when there's a balance.
+    final walletAsync = ref.watch(walletProvider);
+    final double balance = walletAsync.asData?.value.balance ?? 0;
+    if (balance <= 0) return const SizedBox.shrink();
+    return NsCard(
+      child: Row(children: <Widget>[
+        const Icon(Icons.account_balance_wallet_outlined, size: 20, color: AppColors.primary),
+        const SizedBox(width: Gap.md),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: <Widget>[
+            const Text('Use wallet balance', style: TextStyle(fontWeight: FontWeight.w700)),
+            Text('₹${balance.toStringAsFixed(0)} available',
+                style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
+          ]),
+        ),
+        FilledButton(
+          onPressed: _busy ? null : () => _applyWallet(o),
+          child: const Text('Apply'),
+        ),
       ]),
     );
   }

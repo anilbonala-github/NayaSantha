@@ -53,6 +53,14 @@ class OrderRepository {
   Future<CustomerOrder> removeCoupon(String orderId) =>
       _wrap(() => _client.deleteReturning('/orders/$orderId/coupon'));
 
+  /// Apply wallet balance to a settled order ([amount] omitted = use all available).
+  Future<CustomerOrder> applyWallet(String orderId, {double? amount}) =>
+      _wrap(() => _client.post('/orders/$orderId/use-wallet',
+          body: amount == null ? null : {'amount': amount}));
+
+  Future<CustomerOrder> removeWallet(String orderId) =>
+      _wrap(() => _client.deleteReturning('/orders/$orderId/wallet'));
+
   /// Ask the backend to create a Razorpay order for this order's final amount.
   /// Returns {configured, keyId, razorpayOrderId, amount, currency, ...}.
   Future<Map<String, dynamic>> createRazorpayOrder(String orderId) async {

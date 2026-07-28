@@ -44,15 +44,19 @@ public class RazorpayCheckoutController {
             return ApiResponse.of(Map.of("configured", false));
         }
         OrderDto order = orders.get(CurrentUser.id(), body.orderId());
-        if (order.amountPayable() == null) {
+        if (order.gatewayPayable() == null) {
             throw new ApiException(ErrorCode.VALIDATION_ERROR, "Order has no final amount yet");
         }
         if ("PAID".equals(order.status())) {
             throw new ApiException(ErrorCode.VALIDATION_ERROR, "Order is already paid");
         }
-        // Charge the net after any coupon discount.
-        long amountPaise = order.amountPayable().movePointRight(2)
+        // Charge the gateway share after any coupon discount and wallet applied.
+        long amountPaise = order.gatewayPayable().movePointRight(2)
                 .setScale(0, java.math.RoundingMode.HALF_UP).longValueExact();
+        // Wallet covers all (or all but a sub-rupee remainder) → nothing to charge externally.
+        if (amountPaise < 100) {
+            return ApiResponse.of(Map.of("configured", false));
+        }
 
         // Razorpay caps receipt at 40 chars; a bare UUID is 36.
         JsonNode rzp = razorpay.createOrder(amountPaise, body.orderId().toString());

@@ -16,6 +16,8 @@ class CustomerOrder {
     this.couponCode,
     this.discountAmount = 0,
     this.amountPayable,
+    this.walletApplied = 0,
+    this.gatewayPayable,
     this.items = const <OrderLine>[],
     this.exception,
   });
@@ -34,6 +36,8 @@ class CustomerOrder {
   final String? couponCode;
   final double discountAmount;
   final double? amountPayable;
+  final double walletApplied;
+  final double? gatewayPayable;
   final List<OrderLine> items;
   final OrderException? exception;
 
@@ -41,9 +45,13 @@ class CustomerOrder {
   bool get isPaid => status == 'PAID';
   bool get hasRefund => refundedAmount > 0;
   bool get hasCoupon => couponCode != null && discountAmount > 0;
+  bool get hasWallet => walletApplied > 0;
   bool get canApplyCoupon => status == 'FINALIZED';
-  /// Net the customer pays: server-computed amountPayable, else final total.
+  bool get canUseWallet => status == 'FINALIZED';
+  /// Amount owed after any coupon discount (before wallet), else final total.
   double? get payable => amountPayable ?? finalTotal;
+  /// What the gateway charges now: after coupon and wallet.
+  double? get toPay => gatewayPayable ?? payable;
 
   static double? _d(dynamic v) => v == null ? null : (v as num).toDouble();
 
@@ -62,6 +70,8 @@ class CustomerOrder {
         couponCode: j['couponCode'] as String?,
         discountAmount: _d(j['discountAmount']) ?? 0,
         amountPayable: _d(j['amountPayable']),
+        walletApplied: _d(j['walletApplied']) ?? 0,
+        gatewayPayable: _d(j['gatewayPayable']),
         items: (j['items'] as List?)
                 ?.map((e) => OrderLine.fromJson(e as Map<String, dynamic>))
                 .toList() ??

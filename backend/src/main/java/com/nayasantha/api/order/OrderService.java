@@ -281,9 +281,9 @@ public class OrderService {
         }
         PaymentAuthorization auth = payments.findFirstByOrderIdOrderByCreatedAtDesc(orderId)
                 .orElseThrow(() -> ApiException.notFound("Payment authorization"));
-        BigDecimal payable = order.getAmountPayable();          // final total less any coupon discount
-        auth.setCapturedAmount(payable);                        // capture only the net amount
-        auth.setReference(gateway.capture(auth.getReference(), payable));
+        BigDecimal gatewayAmount = order.getGatewayPayable();   // net less coupon less wallet
+        auth.setCapturedAmount(gatewayAmount);                  // gateway captures only its share
+        auth.setReference(gateway.capture(auth.getReference(), gatewayAmount));
         auth.setStatus(PaymentAuthorization.Status.CAPTURED);
         payments.save(auth);
         order.setStatus(Order.Status.PAID);
@@ -291,9 +291,15 @@ public class OrderService {
         notifications.create(order.getUserId(),
                 com.nayasantha.api.notification.NotificationService.PAYMENT_COMPLETE,
                 "Payment complete",
-                money(payable) + " charged. Your final invoice and savings summary are ready.",
+                money(gatewayAmount) + " charged" + walletNote(order)
+                        + ". Your final invoice and savings summary are ready.",
                 order.getId());
         return toDto(saved);
+    }
+
+    private String walletNote(Order order) {
+        return order.getWalletApplied() != null && order.getWalletApplied().signum() > 0
+                ? " (" + money(order.getWalletApplied()) + " from wallet)" : "";
     }
 
     // --- ops gateway (Vol3): expose order data to the ops module without leaking repos --
@@ -484,8 +490,8 @@ public class OrderService {
         }
         PaymentAuthorization auth = payments.findFirstByOrderIdOrderByCreatedAtDesc(orderId)
                 .orElseThrow(() -> ApiException.notFound("Payment authorization"));
-        BigDecimal payable = order.getAmountPayable();
-        auth.setCapturedAmount(payable);
+        BigDecimal gatewayAmount = order.getGatewayPayable();
+        auth.setCapturedAmount(gatewayAmount);
         auth.setProvider("RAZORPAY");
         auth.setReference(gatewayPaymentId);
         auth.setStatus(PaymentAuthorization.Status.CAPTURED);
@@ -495,7 +501,8 @@ public class OrderService {
         notifications.create(order.getUserId(),
                 com.nayasantha.api.notification.NotificationService.PAYMENT_COMPLETE,
                 "Payment complete",
-                money(payable) + " charged. Your final invoice and savings summary are ready.",
+                money(gatewayAmount) + " charged" + walletNote(order)
+                        + ". Your final invoice and savings summary are ready.",
                 order.getId());
         return toDto(saved);
     }
@@ -512,6 +519,7 @@ public class OrderService {
         com.nayasantha.api.coupon.CouponService.Applied applied =
                 coupons.validateAndCompute(code, userId, order.getFinalTotal(), isNewUser, orderId);
         coupons.recordRedemption(applied.coupon(), userId, orderId, applied.discount());
+        releaseWalletHold(order);   // amount payable changed; re-apply wallet afterwards
         order.setCouponCode(applied.coupon().getCode());
         order.setDiscountAmount(applied.discount());
         Order saved = orders.save(order);
@@ -525,9 +533,53 @@ public class OrderService {
             throw ApiException.userError("This order has already been paid.");
         }
         coupons.clearRedemption(orderId);
+        releaseWalletHold(order);   // amount payable changed; re-apply wallet afterwards
         order.setCouponCode(null);
         order.setDiscountAmount(BigDecimal.ZERO);
         return toDto(orders.save(order));
+    }
+
+    // --- Wallet at checkout: hold wallet balance against a settled order ----------
+    @Transactional
+    public OrderDto applyWallet(UUID userId, UUID orderId, BigDecimal requested) {
+        Order order = owned(userId, orderId);
+        if (order.getStatus() != Order.Status.FINALIZED || order.getFinalTotal() == null) {
+            throw ApiException.userError("Wallet can only be applied to a settled order that's ready to pay.");
+        }
+        releaseWalletHold(order);   // reset any prior hold so we recompute cleanly
+        BigDecimal payable = order.getAmountPayable();
+        BigDecimal balance = wallet.balance(userId);
+        BigDecimal want = requested != null ? requested : balance;
+        BigDecimal applied = want.min(balance).min(payable).max(BigDecimal.ZERO);
+        if (applied.signum() <= 0) {
+            throw ApiException.userError(balance.signum() <= 0
+                    ? "Your wallet is empty." : "There's nothing left to pay with your wallet.");
+        }
+        wallet.post(userId, applied.negate(),
+                com.nayasantha.api.wallet.WalletTransaction.Type.ORDER_PAYMENT, "Applied to order", orderId);
+        order.setWalletApplied(applied);
+        return toDto(orders.save(order));
+    }
+
+    @Transactional
+    public OrderDto removeWallet(UUID userId, UUID orderId) {
+        Order order = owned(userId, orderId);
+        if (order.getStatus() == Order.Status.PAID) {
+            throw ApiException.userError("This order has already been paid.");
+        }
+        releaseWalletHold(order);
+        return toDto(orders.save(order));
+    }
+
+    /** Credit back any wallet balance held against an order and clear the hold. */
+    private void releaseWalletHold(Order order) {
+        BigDecimal held = order.getWalletApplied();
+        if (held != null && held.signum() > 0) {
+            wallet.credit(order.getUserId(), held,
+                    com.nayasantha.api.wallet.WalletTransaction.Type.ORDER_PAYMENT,
+                    "Released from order", order.getId());
+            order.setWalletApplied(BigDecimal.ZERO);
+        }
     }
 
     // --- reads --------------------------------------------------------------------
@@ -626,6 +678,7 @@ public class OrderService {
                 order.getEstimatedTotal(), order.getMaximumPayable(), order.getFinalTotal(), savings,
                 order.getDeliverySlot(), order.getFulfillmentStage().name(), paymentStatus, itemDtos, exDto,
                 order.getCreatedAt(), order.getVersion(), refundedAmount, refundDtos,
-                order.getCouponCode(), order.getDiscountAmount(), order.getAmountPayable());
+                order.getCouponCode(), order.getDiscountAmount(), order.getAmountPayable(),
+                order.getWalletApplied(), order.getGatewayPayable());
     }
 }

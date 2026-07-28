@@ -62,6 +62,21 @@ public class OrderController {
         return ApiResponse.of(orderService.removeCoupon(CurrentUser.id(), id));
     }
 
+    public record UseWalletRequest(java.math.BigDecimal amount) {}
+
+    /** Apply wallet balance to a settled order before payment (amount optional = use all). */
+    @PostMapping("/orders/{id}/use-wallet")
+    public ApiResponse<OrderDto> useWallet(@PathVariable UUID id,
+                                           @RequestBody(required = false) UseWalletRequest body) {
+        return ApiResponse.of(orderService.applyWallet(CurrentUser.id(), id,
+                body == null ? null : body.amount()));
+    }
+
+    @DeleteMapping("/orders/{id}/wallet")
+    public ApiResponse<OrderDto> removeWallet(@PathVariable UUID id) {
+        return ApiResponse.of(orderService.removeWallet(CurrentUser.id(), id));
+    }
+
     @GetMapping("/orders")
     public ApiResponse<List<OrderDto>> list(@RequestParam(defaultValue = "0") int page,
                                             @RequestParam(defaultValue = "20") int size) {
