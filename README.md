@@ -5,9 +5,23 @@ implementing Volume 2 (Customer Applications) of the NayaSantha PRD.
 
 ## Status
 
-All 29 screens from Volume 2 are implemented against a mock data layer, so the app
-runs end to end today with no backend. Payments, OTP and AI responses are simulated
-and clearly marked in code.
+NayaSantha is now a **fully dynamic product** — every customer screen runs off a live
+Spring Boot + PostgreSQL backend (no mock data). Real Razorpay payments, wallet, coupons,
+subscriptions with recurring billing, membership perks, an ops/admin portal and FCM push
+are built and deployed. **Web** (nayasantha.com) and **Android** are live in production;
+**iOS** ships to TestFlight with push in its final signing step.
+
+See **[FEATURES.md](FEATURES.md)** for the complete functionality list.
+
+> Note: the detailed sections further down (screen map, "What is mocked", backend wiring)
+> describe the original mock-first milestone and are retained for history.
+
+## Documentation
+
+| Document | What's inside |
+|---|---|
+| [TECH_STACK.md](TECH_STACK.md) | Full technology stack with exact versions and **why each was chosen** |
+| [FEATURES.md](FEATURES.md) | Delivered functionality — customer app, ops/admin portal, automation |
 
 ## Prerequisites
 
