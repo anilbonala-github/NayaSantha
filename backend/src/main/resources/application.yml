@@ -49,7 +49,7 @@ nayasantha:
     ttl-seconds: 300
   payments:
     razorpay:
-      # Real gateway (Vol2A §14). false => simulated payments. Use TEST keys first.
+      # Real gateway. Disabled => online payment unavailable. Use TEST keys first.
       enabled: ${RAZORPAY_ENABLED:false}
       key-id: ${RAZORPAY_KEY_ID:}
       key-secret: ${RAZORPAY_KEY_SECRET:}
