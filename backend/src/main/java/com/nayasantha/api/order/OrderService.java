@@ -39,6 +39,7 @@ public class OrderService {
     private final WeeklyPlanRepository plans;
     private final WeeklyPlanItemRepository planItems;
     private final ProductRepository products;
+    private final com.nayasantha.api.catalogue.WeeklyPricingService sellingPrices;
     private final com.nayasantha.api.notification.NotificationService notifications;
     private final com.nayasantha.api.address.AddressRepository addresses;
     private final RefundRepository refunds;
@@ -59,7 +60,8 @@ public class OrderService {
                         com.nayasantha.api.settings.SettingsService settings,
                         com.nayasantha.api.wallet.WalletService wallet,
                         com.nayasantha.api.coupon.CouponService coupons,
-                        com.nayasantha.api.subscription.SubscriptionService subscriptions) {
+                        com.nayasantha.api.subscription.SubscriptionService subscriptions,
+                        com.nayasantha.api.catalogue.WeeklyPricingService sellingPrices) {
         this.orders = orders;
         this.items = items;
         this.consents = consents;
@@ -77,6 +79,7 @@ public class OrderService {
         this.wallet = wallet;
         this.coupons = coupons;
         this.subscriptions = subscriptions;
+        this.sellingPrices = sellingPrices;
     }
 
     /** The delivery fee for a customer's order — waived for members with free delivery. */
@@ -94,25 +97,52 @@ public class OrderService {
         if (!PREFERENCES.contains(req.pricePreference())) {
             throw new ApiException(ErrorCode.VALIDATION_ERROR, "Invalid price preference");
         }
-        WeeklyPlan plan = plans.findById(planId).filter(p -> p.getUserId().equals(userId))
+        WeeklyPlan plan = plans.lockById(planId).filter(p -> p.getUserId().equals(userId))
                 .orElseThrow(() -> ApiException.notFound("Weekly plan"));
+        if (plan.getStatus() != WeeklyPlan.Status.DRAFT) {
+            throw ApiException.userError("This plan is already confirmed. Open your orders to view it.");
+        }
+        if (!"FIXED_WEEKLY".equals(plan.getPricingMode())) {
+            throw ApiException.userError("Generate a new plan to review this week's fixed prices.");
+        }
+        if (req.planVersion() != null && !req.planVersion().equals(plan.getVersion())) {
+            throw ApiException.userError("Your plan changed. Refresh and review it before confirming.");
+        }
         List<WeeklyPlanItem> lines = planItems.findByPlanId(planId);
         if (lines.isEmpty()) throw new ApiException(ErrorCode.VALIDATION_ERROR, "Plan has no items");
 
-        BigDecimal maxPayable = req.maxPayable() != null ? req.maxPayable() : plan.getMaximumPayable();
+        var currentPrices = sellingPrices.current(lines.stream().map(WeeklyPlanItem::getProductId).toList());
+        BigDecimal subtotal = BigDecimal.ZERO;
+        for (WeeklyPlanItem line : lines) {
+            var price = currentPrices.get(line.getProductId());
+            if (price == null || price.getSellingPrice().compareTo(line.getUnitForecastPrice()) != 0) {
+                throw ApiException.userError("Prices have changed since this plan was created. Generate a new plan and review it before confirming.");
+            }
+            subtotal = subtotal.add(price.getSellingPrice().multiply(BigDecimal.valueOf(line.getQuantity())));
+        }
+        BigDecimal maxPayable = subtotal;
+        if (req.maxPayable() != null && req.maxPayable().compareTo(subtotal) < 0) {
+            throw ApiException.userError("The reviewed total exceeds your limit. Edit your items before confirming.");
+        }
 
         Order order = new Order();
         order.setUserId(userId);
         order.setPlanId(planId);
-        order.setPricePreference(req.pricePreference());
-        order.setEstimatedTotal(plan.getEstimatedTotal());
+        order.setPricePreference("KEEP_EXACT_ITEMS");
+        order.setPricingMode("FIXED_WEEKLY");
+        order.setEstimatedTotal(subtotal);
+        order.setFinalTotal(subtotal);
+        order.setDeliveryFee(deliveryFeeFor(userId));
         order.setMaximumPayable(maxPayable);
         // Members with the priority-slot perk get the earlier delivery window.
         order.setDeliverySlot(subscriptions.perksOf(userId).prioritySlot()
                 ? settings.priorityDeliverySlot() : settings.deliverySlot());
         // Snapshot the delivery community for packing/delivery waves (Vol2A §7.4).
         var defaultAddress = addresses.findByUserIdOrderByIsDefaultDescCreatedAtDesc(userId)
-                .stream().findFirst().orElse(null);
+                .stream().filter(a -> a.isDefault() && a.isServiceable()).findFirst().orElse(null);
+        if (defaultAddress == null) {
+            throw ApiException.userError("Choose a serviceable delivery address before confirming.");
+        }
         if (defaultAddress != null) {
             var a = defaultAddress;
             order.setCommunity(a.getApartment() != null && !a.getApartment().isBlank()
@@ -128,14 +158,18 @@ public class OrderService {
                 .forEach(p -> byId.put(p.getId(), p));
         for (WeeklyPlanItem li : lines) {
             Product p = byId.get(li.getProductId());
+            if (p == null || !p.isActive()) throw ApiException.userError("An item is no longer available. Generate a new plan.");
             OrderItem oi = new OrderItem();
             oi.setOrderId(order.getId());
             oi.setProductId(li.getProductId());
-            oi.setName(p == null ? "Item" : p.getName());
-            oi.setUnit(p == null ? null : p.getUnit());
+            oi.setName(p.getName());
+            oi.setUnit(p.getUnit());
             oi.setQuantity(li.getQuantity());
             oi.setForecastRate(li.getUnitForecastPrice());
             oi.setEstimatedAmount(li.getUnitForecastPrice().multiply(BigDecimal.valueOf(li.getQuantity())));
+            oi.setActualRate(li.getUnitForecastPrice());
+            oi.setFinalQty(li.getQuantity());
+            oi.setFinalAmount(oi.getEstimatedAmount());
             items.save(oi);
         }
 
@@ -143,17 +177,17 @@ public class OrderService {
         consent.setPlanId(planId);
         consent.setOrderId(order.getId());
         consent.setUserId(userId);
-        consent.setMaxPayable(maxPayable);
-        consent.setPreference(req.pricePreference());
-        consent.setSubstitutionConsent(req.substitutionConsent() == null || req.substitutionConsent());
+        consent.setMaxPayable(order.getAmountPayable());
+        consent.setPreference("KEEP_EXACT_ITEMS");
+        consent.setSubstitutionConsent(false);
         consent.setDeviceInfo(req.deviceInfo());
         consents.save(consent);
 
         PaymentAuthorization auth = new PaymentAuthorization();
         auth.setOrderId(order.getId());
-        auth.setAuthorizedAmount(maxPayable);      // authorize the cap; capture only final (Vol2A §14)
+        auth.setAuthorizedAmount(order.getAmountPayable());      // authorize the cap; capture only final (Vol2A §14)
         auth.setProvider(gateway.isLive() ? "GATEWAY" : "SIMULATED");
-        auth.setReference(gateway.authorize(order.getId(), maxPayable));
+        auth.setReference(gateway.authorize(order.getId(), order.getAmountPayable()));
         payments.save(auth);
 
         plan.setStatus(WeeklyPlan.Status.APPROVED);
@@ -162,15 +196,45 @@ public class OrderService {
         notifications.create(userId,
                 com.nayasantha.api.notification.NotificationService.ORDER_CONFIRMED,
                 "Order confirmed",
-                "Your weekly order is locked. You'll never be charged more than "
-                        + money(maxPayable) + " without your approval.",
+                "Your weekly order is confirmed at " + money(order.getAmountPayable())
+                        + ", including delivery. Item prices are fixed for this order.",
                 order.getId());
+        return toDto(order);
+    }
+
+    /** Called only after CheckoutService revalidates the server review under the basket lock. */
+    @Transactional
+    public OrderDto confirmBasket(UUID userId, UUID basketId, CheckoutService.Preview preview) {
+        Order order = new Order();
+        order.setUserId(userId); order.setBasketId(basketId); order.setPricingMode("FIXED_WEEKLY");
+        order.setPricePreference("KEEP_EXACT_ITEMS"); order.setEstimatedTotal(preview.subtotal());
+        order.setMaximumPayable(preview.subtotal()); order.setFinalTotal(preview.subtotal());
+        order.setDeliveryFee(preview.deliveryFee()); order.setDeliverySlot(preview.deliverySlot());
+        order.setAddressSnapshot(preview.deliveryAddress()); order.setCommunity(preview.community());
+        order = orders.save(order);
+        for (CheckoutService.Line line : preview.items()) {
+            OrderItem item = new OrderItem(); item.setOrderId(order.getId()); item.setProductId(line.productId());
+            item.setName(line.name()); item.setUnit(line.unit()); item.setQuantity(line.quantity());
+            item.setForecastRate(line.unitPrice()); item.setActualRate(line.unitPrice());
+            item.setEstimatedAmount(line.amount()); item.setFinalAmount(line.amount()); item.setFinalQty(line.quantity());
+            items.save(item);
+        }
+        PaymentAuthorization auth = new PaymentAuthorization(); auth.setOrderId(order.getId());
+        auth.setAuthorizedAmount(preview.total()); auth.setProvider(gateway.isLive() ? "GATEWAY" : "SIMULATED");
+        auth.setReference(gateway.authorize(order.getId(), preview.total())); payments.save(auth);
+        notifications.create(userId, com.nayasantha.api.notification.NotificationService.ORDER_CONFIRMED,
+                "Order confirmed", "Your order is confirmed at " + money(preview.total())
+                + ", including delivery. Item prices are fixed for this order.", order.getId());
         return toDto(order);
     }
 
     @Transactional
     public OrderDto lock(UUID userId, UUID orderId) {
         Order order = owned(userId, orderId);
+        if (order.getStatus() == Order.Status.LOCKED) return toDto(order);
+        if (order.getStatus() != Order.Status.CONFIRMED) {
+            throw ApiException.userError("Only confirmed orders can be locked.");
+        }
         order.setStatus(Order.Status.LOCKED);
         order.setLockedAt(Instant.now());
         return toDto(orders.save(order));
@@ -181,6 +245,9 @@ public class OrderService {
     @Transactional
     public OrderDto simulateSettlement(UUID userId, UUID orderId) {
         Order order = owned(userId, orderId);
+        if (order.isFixedPrice()) {
+            throw ApiException.userError("This order has fixed prices. Market settlement is handled by the store.");
+        }
         Random rnd = new Random();
         return settle(order, oi -> oi.getForecastRate()
                 .multiply(BigDecimal.valueOf(1 + (-0.03 + rnd.nextDouble() * 0.11)))
@@ -194,12 +261,16 @@ public class OrderService {
     @Transactional
     public OrderDto settleWithCapturedRates(UUID orderId, Map<UUID, BigDecimal> ratesByProduct) {
         Order order = orders.findById(orderId).orElseThrow(() -> ApiException.notFound("Order"));
+        if (order.getStatus() == Order.Status.FINALIZED || order.getStatus() == Order.Status.PAID
+                || order.getStatus() == Order.Status.DELIVERED) return toDto(order);
         OrderDto dto = settle(order, oi -> {
             BigDecimal r = oi.getProductId() == null ? null : ratesByProduct.get(oi.getProductId());
             return (r != null ? r : oi.getForecastRate()).setScale(2, RoundingMode.HALF_UP);
         });
         if ("FINALIZED".equals(dto.status())) {
-            String body = "Market purchase complete. Final total " + money(dto.finalTotal())
+            String body = order.isFixedPrice()
+                    ? "Your order is ready for payment. Your confirmed item total remains " + money(dto.finalTotal()) + "."
+                    : "Market purchase complete. Final total " + money(dto.finalTotal())
                     + (dto.savings() != null && dto.savings().signum() > 0
                         ? " — you saved " + money(dto.savings()) + "." : ".");
             notifications.create(order.getUserId(),
@@ -217,6 +288,16 @@ public class OrderService {
 
     /** Shared settlement core: apply per-line actual rates, then enforce the cap (Vol2A). */
     private OrderDto settle(Order order, java.util.function.Function<OrderItem, BigDecimal> rateFn) {
+        if (order.getStatus() == Order.Status.FINALIZED || order.getStatus() == Order.Status.PAID
+                || order.getStatus() == Order.Status.DELIVERED) return toDto(order);
+        if (order.getStatus() != Order.Status.LOCKED && order.getStatus() != Order.Status.CONFIRMED) {
+            throw ApiException.userError("This order cannot be finalized in its current state.");
+        }
+        // Procurement rates remain in market_prices. Never rewrite the customer's snapshot.
+        if (order.isFixedPrice()) {
+            order.setStatus(Order.Status.FINALIZED);
+            return toDto(orders.save(order));
+        }
         List<OrderItem> lines = items.findByOrderId(order.getId());
         BigDecimal finalTotal = BigDecimal.ZERO;
         for (OrderItem oi : lines) {
@@ -297,8 +378,11 @@ public class OrderService {
         PaymentAuthorization auth = payments.findFirstByOrderIdOrderByCreatedAtDesc(orderId)
                 .orElseThrow(() -> ApiException.notFound("Payment authorization"));
         BigDecimal gatewayAmount = order.getGatewayPayable();   // net less coupon less wallet
+        if (gatewayAmount.signum() > 0 && !gateway.isLive()) {
+            throw new ApiException(ErrorCode.VALIDATION_ERROR, "Online payment is temporarily unavailable. Please try again later.");
+        }
         auth.setCapturedAmount(gatewayAmount);                  // gateway captures only its share
-        auth.setReference(gateway.capture(auth.getReference(), gatewayAmount));
+        if (gatewayAmount.signum() > 0) auth.setReference(gateway.capture(auth.getReference(), gatewayAmount));
         auth.setStatus(PaymentAuthorization.Status.CAPTURED);
         payments.save(auth);
         order.setStatus(Order.Status.PAID);
@@ -506,6 +590,9 @@ public class OrderService {
         PaymentAuthorization auth = payments.findFirstByOrderIdOrderByCreatedAtDesc(orderId)
                 .orElseThrow(() -> ApiException.notFound("Payment authorization"));
         BigDecimal gatewayAmount = order.getGatewayPayable();
+        if (gatewayAmount.signum() > 0 && !gateway.isLive()) {
+            throw new ApiException(ErrorCode.VALIDATION_ERROR, "Online payment is temporarily unavailable. Please try again later.");
+        }
         auth.setCapturedAmount(gatewayAmount);
         auth.setProvider("RAZORPAY");
         auth.setReference(gatewayPaymentId);
@@ -695,6 +782,6 @@ public class OrderService {
                 order.getDeliverySlot(), order.getFulfillmentStage().name(), paymentStatus, itemDtos, exDto,
                 order.getCreatedAt(), order.getVersion(), refundedAmount, refundDtos,
                 order.getCouponCode(), order.getDiscountAmount(), order.getAmountPayable(),
-                order.getWalletApplied(), order.getGatewayPayable(), order.getDeliveryFee());
+                order.getWalletApplied(), order.getGatewayPayable(), order.getDeliveryFee(), order.getPricingMode());
     }
 }

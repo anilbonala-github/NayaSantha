@@ -53,7 +53,11 @@ class WeeklyPlan {
     required this.itemCount,
     required this.items,
     this.version,
+    this.pricingMode = 'LEGACY_VARIABLE',
   });
+
+  final String pricingMode;
+  bool get isFixedPrice => pricingMode == 'FIXED_WEEKLY';
 
   final String id;
   final String weekStart;
@@ -67,6 +71,7 @@ class WeeklyPlan {
   final int? version;
 
   factory WeeklyPlan.fromJson(Map<String, dynamic> j) => WeeklyPlan(
+        pricingMode: j['pricingMode'] as String? ?? 'LEGACY_VARIABLE',
         id: j['id'] as String,
         weekStart: j['weekStart'] as String,
         status: j['status'] as String,

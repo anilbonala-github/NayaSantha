@@ -7,7 +7,7 @@ import '../../../core/router/routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/common.dart';
-import '../../order/presentation/order_providers.dart';
+import '../../basket/presentation/basket_providers.dart';
 import '../domain/plan_models.dart';
 import 'plan_providers.dart';
 
@@ -25,11 +25,14 @@ class AiWeeklyPlanScreen extends ConsumerWidget {
       body: planAsync.when(
         loading: () => const _Busy('Loading your plan…'),
         error: (e, _) => _RetryView(
-          message: e is ApiFailure ? e.userMessage : 'Could not load your plan.',
+          message:
+              e is ApiFailure ? e.userMessage : 'Could not load your plan.',
           onRetry: () => ref.invalidate(weeklyPlanProvider),
         ),
         data: (plan) => plan == null
-            ? _GenerateEmpty(onGenerate: () => ref.read(weeklyPlanProvider.notifier).generate())
+            ? _GenerateEmpty(
+                onGenerate: () =>
+                    ref.read(weeklyPlanProvider.notifier).generate())
             : _PlanView(plan: plan),
       ),
     );
@@ -75,22 +78,31 @@ class _PlanView extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
-                        Row(children: <Widget>[
-                          const Icon(Icons.auto_awesome, size: 18, color: AppColors.primary),
-                          const SizedBox(width: 6),
-                          Text('Week of ${plan.weekStart}',
-                              style: const TextStyle(fontWeight: FontWeight.w700)),
-                          const Spacer(),
-                          StatusChip(
-                            label: plan.aiSource == 'GEMINI' ? 'Gemini' : 'Smart plan',
-                            color: AppColors.forest,
-                          ),
-                        ]),
+                        Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: <Widget>[
+                              const Icon(Icons.auto_awesome,
+                                  size: 18, color: AppColors.primary),
+                              const SizedBox(width: 6),
+                              Text('Week of ${plan.weekStart}',
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w700)),
+                              StatusChip(
+                                label: plan.aiSource == 'GEMINI'
+                                    ? 'Gemini'
+                                    : 'Smart plan',
+                                color: AppColors.forest,
+                              ),
+                            ]),
                         if (plan.aiExplanation != null) ...<Widget>[
                           const SizedBox(height: Gap.sm),
                           Text(plan.aiExplanation!,
                               style: const TextStyle(
-                                  fontSize: 13, color: AppColors.textSecondary, height: 1.4)),
+                                  fontSize: 13,
+                                  color: AppColors.textSecondary,
+                                  height: 1.4)),
                         ],
                       ],
                     ),
@@ -100,22 +112,22 @@ class _PlanView extends ConsumerWidget {
                   NsCard(
                     child: Column(
                       children: <Widget>[
-                        _row('Estimated total', '₹${plan.estimatedTotal.toStringAsFixed(0)}'),
+                        _row('Item subtotal',
+                            '₹${plan.estimatedTotal.toStringAsFixed(2)}'),
                         const SizedBox(height: Gap.sm),
-                        _row('Guaranteed maximum payable',
-                            '₹${plan.maximumPayable.toStringAsFixed(0)}',
-                            color: AppColors.forest),
-                        const SizedBox(height: Gap.sm),
-                        const Text(
-                          'Expected variation ±2%. You are never charged above the maximum '
-                          'without your approval; you pay the actual Sunday market total.',
-                          style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                        Text(
+                          plan.isFixedPrice
+                              ? 'These item prices are fixed when you confirm. Delivery and any discounts are shown on your order before payment.'
+                              : 'This is an older plan. Generate a new plan to review this week’s fixed prices.',
+                          style: const TextStyle(
+                              fontSize: 12, color: AppColors.textSecondary),
                         ),
                       ],
                     ),
                   ),
                   const SizedBox(height: Gap.lg),
-                  Text('${plan.itemCount} items', style: const TextStyle(fontWeight: FontWeight.w700)),
+                  Text('${plan.itemCount} items',
+                      style: const TextStyle(fontWeight: FontWeight.w700)),
                   const SizedBox(height: Gap.sm),
                   NsCard(
                     padding: const EdgeInsets.symmetric(horizontal: Gap.lg),
@@ -124,11 +136,14 @@ class _PlanView extends ConsumerWidget {
                         for (int i = 0; i < plan.items.length; i++) ...<Widget>[
                           _PlanItemRow(
                             item: plan.items[i],
-                            onChanged: (q) => notifier.setItemQuantity(
-                                plan.items[i].id, q,
-                                version: plan.items[i].version),
+                            onChanged: plan.status == 'DRAFT'
+                                ? (q) => notifier.setItemQuantity(
+                                    plan.items[i].id, q,
+                                    version: plan.items[i].version)
+                                : null,
                           ),
-                          if (i != plan.items.length - 1) const Divider(height: 1),
+                          if (i != plan.items.length - 1)
+                            const Divider(height: 1),
                         ],
                       ],
                     ),
@@ -151,11 +166,20 @@ class _PlanView extends ConsumerWidget {
           child: Padding(
             padding: const EdgeInsets.all(Gap.lg),
             child: Center(
+              heightFactor: 1,
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 868),
                 child: FilledButton(
-                  onPressed: () => _openConsent(context, ref),
-                  child: Text('Confirm & approve · max ₹${plan.maximumPayable.toStringAsFixed(0)}'),
+                  onPressed: plan.status == 'APPROVED'
+                      ? () => context.go(Routes.basket)
+                      : plan.isFixedPrice &&
+                              plan.status == 'DRAFT' &&
+                              plan.items.isNotEmpty
+                          ? () => _openConsent(context, ref)
+                          : null,
+                  child: Text(plan.status == 'DRAFT'
+                      ? 'Add plan to basket'
+                      : 'View basket'),
                 ),
               ),
             ),
@@ -172,29 +196,32 @@ class _PlanView extends ConsumerWidget {
       backgroundColor: AppColors.surface,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => _ConsentSheet(maxPayable: plan.maximumPayable),
+      builder: (_) => _ConsentSheet(subtotal: plan.estimatedTotal),
     );
     if (preference == null || !context.mounted) return;
 
     try {
-      final order = await ref.read(orderRepositoryProvider)
-          .approve(plan.id, pricePreference: preference, deviceInfo: 'flutter');
+      await ref.read(basketRepositoryProvider).addPlan(plan.id);
+      ref.invalidate(weeklyPlanProvider);
+      ref.invalidate(basketProvider);
       if (!context.mounted) return;
-      // Straight to the order / final-bill screen (Vol2A journey continues there).
-      context.go(Routes.orderBillPath(order.id));
+      context.go(Routes.basket);
     } on ApiFailure catch (f) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(f.userMessage)));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(f.userMessage)));
       }
     }
   }
 
-  Widget _row(String label, String value, {Color color = AppColors.textPrimary}) {
+  Widget _row(String label, String value,
+      {Color color = AppColors.textPrimary}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: <Widget>[
         Text(label, style: const TextStyle(color: AppColors.textSecondary)),
-        Text(value, style: TextStyle(fontWeight: FontWeight.w800, color: color)),
+        Text(value,
+            style: TextStyle(fontWeight: FontWeight.w800, color: color)),
       ],
     );
   }
@@ -203,7 +230,7 @@ class _PlanView extends ConsumerWidget {
 class _PlanItemRow extends StatelessWidget {
   const _PlanItemRow({required this.item, required this.onChanged});
   final PlanItem item;
-  final ValueChanged<int> onChanged;
+  final ValueChanged<int>? onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -222,11 +249,12 @@ class _PlanItemRow extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(fontWeight: FontWeight.w600)),
                 Text(
-                  '${item.unit ?? ''} · est. ₹${item.lineEstimate.toStringAsFixed(0)}'
+                  '${item.unit ?? ''} · ₹${item.lineEstimate.toStringAsFixed(2)}'
                   '${item.reason != null && item.reason!.isNotEmpty ? ' · ${item.reason}' : ''}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  style: const TextStyle(
+                      fontSize: 12, color: AppColors.textSecondary),
                 ),
               ],
             ),
@@ -241,7 +269,7 @@ class _PlanItemRow extends StatelessWidget {
 class _Stepper extends StatelessWidget {
   const _Stepper({required this.quantity, required this.onChanged});
   final int quantity;
-  final ValueChanged<int> onChanged;
+  final ValueChanged<int>? onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -253,78 +281,48 @@ class _Stepper extends StatelessWidget {
       child: Row(mainAxisSize: MainAxisSize.min, children: <Widget>[
         IconButton(
           visualDensity: VisualDensity.compact,
-          icon: Icon(quantity <= 1 ? Icons.delete_outline : Icons.remove, size: 16),
-          onPressed: () => onChanged(quantity - 1),
+          icon: Icon(quantity <= 1 ? Icons.delete_outline : Icons.remove,
+              size: 16),
+          onPressed: onChanged == null ? null : () => onChanged!(quantity - 1),
         ),
         Text('$quantity', style: const TextStyle(fontWeight: FontWeight.w700)),
         IconButton(
           visualDensity: VisualDensity.compact,
           icon: const Icon(Icons.add, size: 16),
           color: AppColors.primary,
-          onPressed: () => onChanged(quantity + 1),
+          onPressed: onChanged == null ? null : () => onChanged!(quantity + 1),
         ),
       ]),
     );
   }
 }
 
-class _ConsentSheet extends StatefulWidget {
-  const _ConsentSheet({required this.maxPayable});
-  final double maxPayable;
+class _ConsentSheet extends StatelessWidget {
+  const _ConsentSheet({required this.subtotal});
+  final double subtotal;
 
   @override
-  State<_ConsentSheet> createState() => _ConsentSheetState();
-}
-
-class _ConsentSheetState extends State<_ConsentSheet> {
-  // Recommended option preselected (Vol2A §6.2).
-  String _preference = 'SMART_SUBSTITUTE';
-
-  static const _options = <String, String>{
-    'SMART_SUBSTITUTE': 'Smart substitute — AI swaps pricey items for approved alternatives under your cap',
-    'KEEP_EXACT_ITEMS': 'Keep exact items — ask me if the total goes over the cap',
-    'ASK_BEFORE_CHANGE': 'Ask before any change — full control',
-    'REMOVE_EXPENSIVE_ITEMS': 'Remove expensive items — drop items that push over the cap',
-  };
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-          left: Gap.lg, right: Gap.lg, top: Gap.lg,
-          bottom: MediaQuery.of(context).viewInsets.bottom + Gap.lg),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text('How should we handle price changes?',
-              style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: Gap.sm),
-          Text('No amount above ₹${widget.maxPayable.toStringAsFixed(0)} will be '
-              'charged without your consent.',
-              style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-          const SizedBox(height: Gap.sm),
-          for (final entry in _options.entries)
-            RadioListTile<String>(
-              value: entry.key,
-              groupValue: _preference,
-              onChanged: (v) => setState(() => _preference = v!),
-              title: Text(entry.value, style: const TextStyle(fontSize: 13.5)),
-              contentPadding: EdgeInsets.zero,
-              dense: true,
-            ),
-          const SizedBox(height: Gap.sm),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              onPressed: () => Navigator.pop(context, _preference),
-              child: const Text('Approve order'),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(Gap.lg),
+          child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Add plan to your basket',
+                    style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: Gap.md),
+                Text('Item subtotal: ₹${subtotal.toStringAsFixed(2)}'),
+                const SizedBox(height: Gap.sm),
+                const Text(
+                    'These items will be added to your existing basket at current prices. Review quantities, delivery and the full total in checkout before confirming your order.'),
+                const SizedBox(height: Gap.lg),
+                FilledButton(
+                    onPressed: () => Navigator.pop(context, 'KEEP_EXACT_ITEMS'),
+                    child: const Text('Add items')),
+              ]),
+        ),
+      );
 }
 
 class _Busy extends StatelessWidget {

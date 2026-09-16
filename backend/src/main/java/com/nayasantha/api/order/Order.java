@@ -18,6 +18,15 @@ public class Order extends BaseEntity {
     @Column(name = "user_id", nullable = false)
     private UUID userId;
 
+    @Column(name = "pricing_mode", nullable = false)
+    private String pricingMode = "LEGACY_VARIABLE";
+
+    @Transient
+    public boolean isFixedPrice() { return "FIXED_WEEKLY".equals(pricingMode); }
+
+    @Column(name = "basket_id", unique = true)
+    private UUID basketId;
+
     @Column(name = "plan_id")
     private UUID planId;
 

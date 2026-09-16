@@ -38,19 +38,28 @@ class _OrderBillScreenState extends ConsumerState<OrderBillScreen> {
     super.dispose();
   }
 
-  Future<void> _load() => _run(() => ref.read(orderRepositoryProvider).get(widget.orderId));
+  Future<void> _load() =>
+      _run(() => ref.read(orderRepositoryProvider).get(widget.orderId));
 
   Future<void> _applyCoupon(CustomerOrder o) async {
     final code = _couponController.text.trim();
     if (code.isEmpty) return;
     FocusScope.of(context).unfocus();
-    setState(() { _busy = true; _error = null; });
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
     try {
-      final order = await ref.read(orderRepositoryProvider).applyCoupon(o.id, code);
+      final order =
+          await ref.read(orderRepositoryProvider).applyCoupon(o.id, code);
       if (mounted) {
         _couponController.clear();
-        ref.invalidate(walletProvider); // applying a coupon releases any wallet hold
-        setState(() { _order = order; _busy = false; });
+        ref.invalidate(
+            walletProvider); // applying a coupon releases any wallet hold
+        setState(() {
+          _order = order;
+          _busy = false;
+        });
         _snack('Coupon applied');
       }
     } on ApiFailure catch (f) {
@@ -60,12 +69,19 @@ class _OrderBillScreenState extends ConsumerState<OrderBillScreen> {
   }
 
   Future<void> _removeCoupon(CustomerOrder o) async {
-    setState(() { _busy = true; _error = null; });
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
     try {
       final order = await ref.read(orderRepositoryProvider).removeCoupon(o.id);
       if (mounted) {
-        ref.invalidate(walletProvider); // a coupon change releases any wallet hold
-        setState(() { _order = order; _busy = false; });
+        ref.invalidate(
+            walletProvider); // a coupon change releases any wallet hold
+        setState(() {
+          _order = order;
+          _busy = false;
+        });
       }
     } on ApiFailure catch (f) {
       if (mounted) setState(() => _busy = false);
@@ -74,12 +90,18 @@ class _OrderBillScreenState extends ConsumerState<OrderBillScreen> {
   }
 
   Future<void> _applyWallet(CustomerOrder o) async {
-    setState(() { _busy = true; _error = null; });
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
     try {
       final order = await ref.read(orderRepositoryProvider).applyWallet(o.id);
       if (mounted) {
         ref.invalidate(walletProvider);
-        setState(() { _order = order; _busy = false; });
+        setState(() {
+          _order = order;
+          _busy = false;
+        });
         _snack('Wallet applied');
       }
     } on ApiFailure catch (f) {
@@ -89,12 +111,18 @@ class _OrderBillScreenState extends ConsumerState<OrderBillScreen> {
   }
 
   Future<void> _removeWallet(CustomerOrder o) async {
-    setState(() { _busy = true; _error = null; });
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
     try {
       final order = await ref.read(orderRepositoryProvider).removeWallet(o.id);
       if (mounted) {
         ref.invalidate(walletProvider);
-        setState(() { _order = order; _busy = false; });
+        setState(() {
+          _order = order;
+          _busy = false;
+        });
       }
     } on ApiFailure catch (f) {
       if (mounted) setState(() => _busy = false);
@@ -103,25 +131,45 @@ class _OrderBillScreenState extends ConsumerState<OrderBillScreen> {
   }
 
   Future<void> _run(Future<CustomerOrder> Function() action) async {
-    setState(() { _busy = true; _error = null; });
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
     try {
       final order = await action();
-      if (mounted) setState(() { _order = order; _busy = false; });
+      if (mounted) {
+        setState(() {
+          _order = order;
+          _busy = false;
+        });
+      }
     } on ApiFailure catch (f) {
-      if (mounted) setState(() { _error = f.userMessage; _busy = false; });
+      if (mounted) {
+        setState(() {
+          _error = f.userMessage;
+          _busy = false;
+        });
+      }
     }
   }
 
   /// Pay the final amount. Uses Razorpay Standard Checkout when the backend has it
-  /// configured; otherwise falls back to the simulated capture.
+  /// configured; a missing payment provider never simulates a charge.
   Future<void> _payNow(CustomerOrder o) async {
     final repo = ref.read(orderRepositoryProvider);
-    setState(() { _busy = true; _error = null; });
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
     try {
       final res = await repo.createRazorpayOrder(o.id);
       if (res['configured'] == false) {
-        final order = await repo.capture(o.id);
-        if (mounted) setState(() { _order = order; _busy = false; });
+        if (mounted) {
+          setState(() => _busy = false);
+          _snack(
+              'Online payment is temporarily unavailable. Please try again later.',
+              error: true);
+        }
         return;
       }
       final result = await openRazorpayCheckout(RazorpayOptions(
@@ -139,14 +187,28 @@ class _OrderBillScreenState extends ConsumerState<OrderBillScreen> {
           signature: result.signature!,
         );
         final order = await repo.get(o.id);
-        if (mounted) setState(() { _order = order; _busy = false; });
+        if (mounted) {
+          setState(() {
+            _order = order;
+            _busy = false;
+          });
+        }
         _snack('Payment successful');
       } else {
         if (mounted) setState(() => _busy = false);
-        _snack(result.cancelled ? 'Payment cancelled' : (result.error ?? 'Payment failed'), error: true);
+        _snack(
+            result.cancelled
+                ? 'Payment cancelled'
+                : (result.error ?? 'Payment failed'),
+            error: true);
       }
     } on ApiFailure catch (f) {
-      if (mounted) setState(() { _error = f.userMessage; _busy = false; });
+      if (mounted) {
+        setState(() {
+          _error = f.userMessage;
+          _busy = false;
+        });
+      }
     }
   }
 
@@ -191,67 +253,89 @@ class _OrderBillScreenState extends ConsumerState<OrderBillScreen> {
                 children: <Widget>[
                   const SizedBox(height: Gap.lg),
                   Row(children: <Widget>[
-                    StatusChip(label: _statusLabel(o.status), color: _statusColor(o.status)),
+                    StatusChip(
+                        label: _statusLabel(o.status),
+                        color: _statusColor(o.status)),
                     const Spacer(),
                     if (o.deliverySlot != null)
                       Text(o.deliverySlot!,
-                          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                          style: const TextStyle(
+                              fontSize: 12, color: AppColors.textSecondary)),
                   ]),
                   const SizedBox(height: Gap.lg),
 
                   // Over-cap exception banner (Vol2A §6.4).
-                  if (o.awaitingApproval && o.exception != null) _exceptionBanner(o),
+                  if (o.awaitingApproval && o.exception != null)
+                    _exceptionBanner(o),
 
                   // Totals.
                   NsCard(
                     child: Column(children: <Widget>[
-                      _row('Estimated total', '₹${o.estimatedTotal.toStringAsFixed(0)}'),
+                      _row(
+                          o.isFixedPrice
+                              ? 'Confirmed item subtotal'
+                              : 'Estimated total',
+                          '₹${o.estimatedTotal.toStringAsFixed(2)}'),
                       const SizedBox(height: Gap.sm),
-                      _row('Guaranteed maximum', '₹${o.maximumPayable.toStringAsFixed(0)}',
-                          color: AppColors.forest),
+                      if (!o.isFixedPrice)
+                        _row('Guaranteed maximum',
+                            '₹${o.maximumPayable.toStringAsFixed(2)}',
+                            color: AppColors.forest),
                       if (settled) ...<Widget>[
                         const Divider(height: Gap.xl),
-                        _row('Final market total', '₹${o.finalTotal!.toStringAsFixed(0)}',
+                        _row(
+                            o.isFixedPrice
+                                ? 'Item total'
+                                : 'Final market total',
+                            '₹${o.finalTotal!.toStringAsFixed(2)}',
                             bold: true),
-                        if (o.savings != null)
+                        if (!o.isFixedPrice && o.savings != null)
                           Padding(
                             padding: const EdgeInsets.only(top: Gap.sm),
                             child: _row(
-                              o.savings! >= 0 ? 'You saved' : 'Above estimate (within cap)',
-                              '₹${o.savings!.abs().toStringAsFixed(0)}',
-                              color: o.savings! >= 0 ? AppColors.success : AppColors.textSecondary,
+                              o.savings! >= 0
+                                  ? 'You saved'
+                                  : 'Above estimate (within cap)',
+                              '₹${o.savings!.abs().toStringAsFixed(2)}',
+                              color: o.savings! >= 0
+                                  ? AppColors.success
+                                  : AppColors.textSecondary,
                             ),
                           ),
                         if (o.hasCoupon)
                           Padding(
                             padding: const EdgeInsets.only(top: Gap.sm),
                             child: _row('Coupon ${o.couponCode}',
-                                '−₹${o.discountAmount.toStringAsFixed(0)}',
+                                '−₹${o.discountAmount.toStringAsFixed(2)}',
                                 color: AppColors.success),
                           ),
                         Padding(
                           padding: const EdgeInsets.only(top: Gap.sm),
                           child: o.deliveryFee > 0
-                              ? _row('Delivery fee', '+₹${o.deliveryFee.toStringAsFixed(0)}')
-                              : _row('Delivery', 'Free', color: AppColors.success),
+                              ? _row('Delivery fee',
+                                  '+₹${o.deliveryFee.toStringAsFixed(2)}')
+                              : _row('Delivery', 'Free',
+                                  color: AppColors.success),
                         ),
                         if (o.hasWallet)
                           Padding(
                             padding: const EdgeInsets.only(top: Gap.sm),
                             child: _row('Wallet applied',
-                                '−₹${o.walletApplied.toStringAsFixed(0)}',
+                                '−₹${o.walletApplied.toStringAsFixed(2)}',
                                 color: AppColors.info),
                           ),
                         Padding(
                           padding: const EdgeInsets.only(top: Gap.sm),
-                          child: _row(o.hasWallet ? 'To pay now' : 'Amount payable',
-                              '₹${(o.toPay ?? 0).toStringAsFixed(0)}',
+                          child: _row(
+                              o.hasWallet ? 'To pay now' : 'Amount payable',
+                              '₹${(o.toPay ?? 0).toStringAsFixed(2)}',
                               bold: true),
                         ),
                         if (o.hasRefund)
                           Padding(
                             padding: const EdgeInsets.only(top: Gap.sm),
-                            child: _row('Refunded', '−₹${o.refundedAmount.toStringAsFixed(0)}',
+                            child: _row('Refunded',
+                                '−₹${o.refundedAmount.toStringAsFixed(2)}',
                                 color: AppColors.info, bold: true),
                           ),
                       ],
@@ -272,14 +356,17 @@ class _OrderBillScreenState extends ConsumerState<OrderBillScreen> {
                   ],
 
                   // Estimate vs actual, item by item (Vol2A §6.3 transparency).
-                  Text(settled ? 'Estimate vs actual' : 'Items',
+                  Text(
+                      !o.isFixedPrice && settled
+                          ? 'Estimate vs actual'
+                          : 'Items',
                       style: const TextStyle(fontWeight: FontWeight.w700)),
                   const SizedBox(height: Gap.sm),
                   NsCard(
                     padding: const EdgeInsets.symmetric(horizontal: Gap.lg),
                     child: Column(children: <Widget>[
                       for (int i = 0; i < o.items.length; i++) ...<Widget>[
-                        _ItemRow(line: o.items[i]),
+                        _ItemRow(line: o.items[i], fixedPrice: o.isFixedPrice),
                         if (i != o.items.length - 1) const Divider(height: 1),
                       ],
                     ]),
@@ -301,14 +388,16 @@ class _OrderBillScreenState extends ConsumerState<OrderBillScreen> {
       case 'CONFIRMED':
       case 'LOCKED':
       case 'PURCHASING':
-        children.add(FilledButton(
-          onPressed: () => _run(() => repo.simulateSettlement(o.id)),
-          child: const Text('Run Sunday settlement (demo)'),
+        children.add(const Padding(
+          padding: EdgeInsets.all(Gap.sm),
+          child: Text(
+              'Order confirmed. The store will prepare your order and notify you when payment is ready.'),
         ));
       case 'AWAITING_APPROVAL':
         children.addAll(<Widget>[
           FilledButton(
-              onPressed: () => _run(() => repo.decide(o.id, 'REMOVE_EXPENSIVE')),
+              onPressed: () =>
+                  _run(() => repo.decide(o.id, 'REMOVE_EXPENSIVE')),
               child: const Text('Remove expensive items (stay under cap)')),
           const SizedBox(height: Gap.sm),
           OutlinedButton(
@@ -325,7 +414,7 @@ class _OrderBillScreenState extends ConsumerState<OrderBillScreen> {
           onPressed: _busy ? null : () => _payNow(o),
           child: Text(toPay <= 0
               ? 'Complete order · fully paid by wallet'
-              : 'Pay ${(o.hasCoupon || o.hasWallet) ? '' : 'final amount · '}₹${toPay.toStringAsFixed(0)}'),
+              : 'Pay ${(o.hasCoupon || o.hasWallet) ? '' : 'final amount · '}₹${toPay.toStringAsFixed(2)}'),
         ));
       case 'PAID':
         children.add(Container(
@@ -334,18 +423,22 @@ class _OrderBillScreenState extends ConsumerState<OrderBillScreen> {
           decoration: BoxDecoration(
               color: AppColors.success.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(Radii.md)),
-          child: Text('Paid ₹${(o.payable ?? o.finalTotal)!.toStringAsFixed(0)} · out for Sunday delivery',
+          child: Text(
+              'Paid ₹${(o.payable ?? o.finalTotal)!.toStringAsFixed(2)} · out for Sunday delivery',
               textAlign: TextAlign.center,
-              style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.forest)),
+              style: const TextStyle(
+                  fontWeight: FontWeight.w700, color: AppColors.forest)),
         ));
       case 'CANCELLED':
-        children.add(const Text('Order cancelled.', textAlign: TextAlign.center));
+        children
+            .add(const Text('Order cancelled.', textAlign: TextAlign.center));
     }
     if (children.isEmpty) return const SizedBox.shrink();
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.all(Gap.lg),
         child: Center(
+          heightFactor: 1,
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 868),
             child: Column(mainAxisSize: MainAxisSize.min, children: children),
@@ -364,12 +457,16 @@ class _OrderBillScreenState extends ConsumerState<OrderBillScreen> {
           const Icon(Icons.local_offer, size: 20, color: AppColors.success),
           const SizedBox(width: Gap.md),
           Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: <Widget>[
-              Text('${o.couponCode} applied',
-                  style: const TextStyle(fontWeight: FontWeight.w700)),
-              Text('You save ₹${o.discountAmount.toStringAsFixed(0)} on this order.',
-                  style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
-            ]),
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text('${o.couponCode} applied',
+                      style: const TextStyle(fontWeight: FontWeight.w700)),
+                  Text(
+                      'You save ₹${o.discountAmount.toStringAsFixed(2)} on this order.',
+                      style: const TextStyle(
+                          fontSize: 12.5, color: AppColors.textSecondary)),
+                ]),
           ),
           if (!o.isPaid)
             TextButton(
@@ -380,29 +477,32 @@ class _OrderBillScreenState extends ConsumerState<OrderBillScreen> {
       );
     }
     return NsCard(
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: <Widget>[
-        const Text('Have a coupon?', style: TextStyle(fontWeight: FontWeight.w700)),
-        const SizedBox(height: Gap.sm),
-        Row(children: <Widget>[
-          Expanded(
-            child: TextField(
-              controller: _couponController,
-              textCapitalization: TextCapitalization.characters,
-              decoration: const InputDecoration(
-                hintText: 'Enter code',
-                isDense: true,
-                border: OutlineInputBorder(),
+      child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            const Text('Have a coupon?',
+                style: TextStyle(fontWeight: FontWeight.w700)),
+            const SizedBox(height: Gap.sm),
+            Row(children: <Widget>[
+              Expanded(
+                child: TextField(
+                  controller: _couponController,
+                  textCapitalization: TextCapitalization.characters,
+                  decoration: const InputDecoration(
+                    hintText: 'Enter code',
+                    isDense: true,
+                    border: OutlineInputBorder(),
+                  ),
+                  onSubmitted: (_) => _applyCoupon(o),
+                ),
               ),
-              onSubmitted: (_) => _applyCoupon(o),
-            ),
-          ),
-          const SizedBox(width: Gap.sm),
-          FilledButton(
-            onPressed: _busy ? null : () => _applyCoupon(o),
-            child: const Text('Apply'),
-          ),
-        ]),
-      ]),
+              const SizedBox(width: Gap.sm),
+              FilledButton(
+                onPressed: _busy ? null : () => _applyCoupon(o),
+                child: const Text('Apply'),
+              ),
+            ]),
+          ]),
     );
   }
 
@@ -412,15 +512,20 @@ class _OrderBillScreenState extends ConsumerState<OrderBillScreen> {
         color: AppColors.info.withValues(alpha: 0.08),
         borderColor: AppColors.info.withValues(alpha: 0.4),
         child: Row(children: <Widget>[
-          const Icon(Icons.account_balance_wallet, size: 20, color: AppColors.info),
+          const Icon(Icons.account_balance_wallet,
+              size: 20, color: AppColors.info),
           const SizedBox(width: Gap.md),
           Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: <Widget>[
-              Text('₹${o.walletApplied.toStringAsFixed(0)} from wallet',
-                  style: const TextStyle(fontWeight: FontWeight.w700)),
-              const Text('Applied to this order. The rest is charged at checkout.',
-                  style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
-            ]),
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text('₹${o.walletApplied.toStringAsFixed(2)} from wallet',
+                      style: const TextStyle(fontWeight: FontWeight.w700)),
+                  const Text(
+                      'Applied to this order. The rest is charged at checkout.',
+                      style: TextStyle(
+                          fontSize: 12.5, color: AppColors.textSecondary)),
+                ]),
           ),
           if (!o.isPaid)
             TextButton(
@@ -436,14 +541,19 @@ class _OrderBillScreenState extends ConsumerState<OrderBillScreen> {
     if (balance <= 0) return const SizedBox.shrink();
     return NsCard(
       child: Row(children: <Widget>[
-        const Icon(Icons.account_balance_wallet_outlined, size: 20, color: AppColors.primary),
+        const Icon(Icons.account_balance_wallet_outlined,
+            size: 20, color: AppColors.primary),
         const SizedBox(width: Gap.md),
         Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: <Widget>[
-            const Text('Use wallet balance', style: TextStyle(fontWeight: FontWeight.w700)),
-            Text('₹${balance.toStringAsFixed(0)} available',
-                style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
-          ]),
+          child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                const Text('Use wallet balance',
+                    style: TextStyle(fontWeight: FontWeight.w700)),
+                Text('₹${balance.toStringAsFixed(2)} available',
+                    style: const TextStyle(
+                        fontSize: 12.5, color: AppColors.textSecondary)),
+              ]),
         ),
         FilledButton(
           onPressed: _busy ? null : () => _applyWallet(o),
@@ -461,29 +571,43 @@ class _OrderBillScreenState extends ConsumerState<OrderBillScreen> {
       decoration: BoxDecoration(
           color: AppColors.carrot.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(Radii.md)),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: <Widget>[
-        const Text('Approval required',
-            style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.carrot)),
-        const SizedBox(height: 4),
-        Text(
-          'The Sunday market total ₹${o.exception!.finalTotal.toStringAsFixed(0)} is above '
-          'your maximum ₹${o.exception!.maxPayable.toStringAsFixed(0)}. Choose how to proceed — '
-          'nothing is charged until you decide.',
-          style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
-        ),
-      ]),
+      child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            const Text('Approval required',
+                style: TextStyle(
+                    fontWeight: FontWeight.w800, color: AppColors.carrot)),
+            const SizedBox(height: 4),
+            Text(
+              'The Sunday market total ₹${o.exception!.finalTotal.toStringAsFixed(2)} is above '
+              'your maximum ₹${o.exception!.maxPayable.toStringAsFixed(2)}. Choose how to proceed — '
+              'nothing is charged until you decide.',
+              style:
+                  const TextStyle(fontSize: 13, color: AppColors.textPrimary),
+            ),
+          ]),
     );
   }
 
   Widget _row(String label, String value,
       {Color color = AppColors.textPrimary, bool bold = false}) {
-    return Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: <Widget>[
-      Text(label,
-          style: TextStyle(
-              color: bold ? AppColors.textPrimary : AppColors.textSecondary,
-              fontWeight: bold ? FontWeight.w700 : FontWeight.w400)),
-      Text(value, style: TextStyle(fontWeight: FontWeight.w800, color: color, fontSize: bold ? 16 : 14)),
-    ]);
+    return Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: <Widget>[
+          Expanded(
+              child: Text(label,
+                  style: TextStyle(
+                      color: bold
+                          ? AppColors.textPrimary
+                          : AppColors.textSecondary,
+                      fontWeight: bold ? FontWeight.w700 : FontWeight.w400))),
+          const SizedBox(width: Gap.sm),
+          Text(value,
+              style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  color: color,
+                  fontSize: bold ? 16 : 14)),
+        ]);
   }
 
   Widget _retry(String message) => Center(
@@ -515,8 +639,9 @@ class _OrderBillScreenState extends ConsumerState<OrderBillScreen> {
 }
 
 class _ItemRow extends StatelessWidget {
-  const _ItemRow({required this.line});
+  const _ItemRow({required this.line, required this.fixedPrice});
   final OrderLine line;
+  final bool fixedPrice;
 
   @override
   Widget build(BuildContext context) {
@@ -526,24 +651,31 @@ class _ItemRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: Gap.md),
       child: Row(children: <Widget>[
         Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: <Widget>[
-            Text(line.name,
-                style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    decoration: removed ? TextDecoration.lineThrough : null,
-                    color: removed ? AppColors.textSecondary : AppColors.textPrimary)),
-            Text(
-              removed
-                  ? (line.substitutionReason ?? 'Removed')
-                  : settled
-                      ? '${line.unit ?? ''} · forecast ₹${line.forecastRate.toStringAsFixed(0)} → actual ₹${line.actualRate!.toStringAsFixed(0)}'
-                      : '${line.unit ?? ''} · x${line.quantity} · est. ₹${line.estimatedAmount.toStringAsFixed(0)}',
-              style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-            ),
-          ]),
+          child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(line.name,
+                    style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        decoration: removed ? TextDecoration.lineThrough : null,
+                        color: removed
+                            ? AppColors.textSecondary
+                            : AppColors.textPrimary)),
+                Text(
+                  removed
+                      ? (line.substitutionReason ?? 'Removed')
+                      : fixedPrice
+                          ? '${line.unit ?? ''} · x${line.quantity} · ₹${line.forecastRate.toStringAsFixed(2)} each'
+                          : settled
+                              ? '${line.unit ?? ''} · forecast ₹${line.forecastRate.toStringAsFixed(2)} → actual ₹${line.actualRate!.toStringAsFixed(2)}'
+                              : '${line.unit ?? ''} · x${line.quantity} · est. ₹${line.estimatedAmount.toStringAsFixed(2)}',
+                  style: const TextStyle(
+                      fontSize: 12, color: AppColors.textSecondary),
+                ),
+              ]),
         ),
         if (settled && !removed)
-          Text('₹${(line.finalAmount ?? 0).toStringAsFixed(0)}',
+          Text('₹${(line.finalAmount ?? 0).toStringAsFixed(2)}',
               style: const TextStyle(fontWeight: FontWeight.w700)),
       ]),
     );

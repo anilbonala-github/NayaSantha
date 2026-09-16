@@ -27,7 +27,10 @@ class BasketScreen extends ConsumerWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              Text(e is ApiFailure ? e.userMessage : 'Could not load your basket.',
+              Text(
+                  e is ApiFailure
+                      ? e.userMessage
+                      : 'Could not load your basket.',
                   style: const TextStyle(color: AppColors.textSecondary)),
               const SizedBox(height: Gap.md),
               FilledButton(
@@ -40,7 +43,8 @@ class BasketScreen extends ConsumerWidget {
             ? EmptyState(
                 icon: Icons.shopping_basket_outlined,
                 title: 'Your basket is empty',
-                message: 'Browse the catalogue or generate a weekly plan to fill it.',
+                message:
+                    'Browse the catalogue or generate a weekly plan to fill it.',
                 actionLabel: 'Browse catalogue',
                 onAction: () => context.go(Routes.categories),
               )
@@ -72,14 +76,17 @@ class _BasketBody extends ConsumerWidget {
                         horizontal: Gap.lg, vertical: Gap.sm),
                     child: Column(
                       children: <Widget>[
-                        for (int i = 0; i < basket.items.length; i++) ...<Widget>[
+                        for (int i = 0;
+                            i < basket.items.length;
+                            i++) ...<Widget>[
                           _BasketItemRow(
                             item: basket.items[i],
                             onChanged: (qty) => notifier.setQuantity(
                                 basket.items[i].id, qty,
                                 version: basket.items[i].version),
                           ),
-                          if (i != basket.items.length - 1) const Divider(height: 1),
+                          if (i != basket.items.length - 1)
+                            const Divider(height: 1),
                         ],
                       ],
                     ),
@@ -89,19 +96,14 @@ class _BasketBody extends ConsumerWidget {
                     child: Column(
                       children: <Widget>[
                         _SummaryRow(
-                            label: 'Estimated total',
-                            value: '₹${basket.estimatedTotal.toStringAsFixed(0)}'),
-                        const SizedBox(height: Gap.sm),
-                        _SummaryRow(
-                          label: 'Guaranteed maximum payable',
-                          value: '₹${basket.maximumPayable.toStringAsFixed(0)}',
-                          valueColor: AppColors.forest,
-                        ),
+                            label: 'Item subtotal',
+                            value:
+                                '₹${basket.estimatedTotal.toStringAsFixed(2)}'),
                         const SizedBox(height: Gap.sm),
                         const Text(
-                          'You are never charged above the maximum without your approval. '
-                          'You pay the actual Sunday market total.',
-                          style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                          'Prices are fixed when your order is confirmed. Review the final bill and delivery charge before payment.',
+                          style: TextStyle(
+                              fontSize: 12, color: AppColors.textSecondary),
                         ),
                       ],
                     ),
@@ -116,12 +118,12 @@ class _BasketBody extends ConsumerWidget {
           child: Padding(
             padding: const EdgeInsets.all(Gap.lg),
             child: Center(
+              heightFactor: 1,
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 868),
                 child: FilledButton(
                   onPressed: () => context.go(Routes.checkout),
-                  child: Text(
-                      'Proceed · est. ₹${basket.estimatedTotal.toStringAsFixed(0)}'),
+                  child: const Text('Review delivery & total'),
                 ),
               ),
             ),
@@ -153,7 +155,8 @@ class _BasketItemRow extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(fontWeight: FontWeight.w600)),
-                Text('${item.unit ?? ''} · ₹${item.lineEstimate.toStringAsFixed(0)}',
+                Text(
+                    '${item.unit ?? ''} · ₹${item.lineEstimate.toStringAsFixed(2)}',
                     style: const TextStyle(
                         fontSize: 12, color: AppColors.textSecondary)),
               ],
@@ -183,10 +186,12 @@ class _QtyStepper extends StatelessWidget {
         children: <Widget>[
           IconButton(
             visualDensity: VisualDensity.compact,
-            icon: Icon(quantity <= 1 ? Icons.delete_outline : Icons.remove, size: 18),
+            icon: Icon(quantity <= 1 ? Icons.delete_outline : Icons.remove,
+                size: 18),
             onPressed: () => onChanged(quantity - 1),
           ),
-          Text('$quantity', style: const TextStyle(fontWeight: FontWeight.w700)),
+          Text('$quantity',
+              style: const TextStyle(fontWeight: FontWeight.w700)),
           IconButton(
             visualDensity: VisualDensity.compact,
             icon: const Icon(Icons.add, size: 18),
@@ -200,11 +205,9 @@ class _QtyStepper extends StatelessWidget {
 }
 
 class _SummaryRow extends StatelessWidget {
-  const _SummaryRow(
-      {required this.label, required this.value, this.valueColor = AppColors.textPrimary});
+  const _SummaryRow({required this.label, required this.value});
   final String label;
   final String value;
-  final Color valueColor;
 
   @override
   Widget build(BuildContext context) {
@@ -213,7 +216,8 @@ class _SummaryRow extends StatelessWidget {
       children: <Widget>[
         Text(label, style: const TextStyle(color: AppColors.textSecondary)),
         Text(value,
-            style: TextStyle(fontWeight: FontWeight.w800, color: valueColor)),
+            style: const TextStyle(
+                fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
       ],
     );
   }

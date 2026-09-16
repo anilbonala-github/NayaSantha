@@ -3,7 +3,7 @@ package com.nayasantha.api.basket;
 import com.nayasantha.api.basket.BasketDtos.*;
 import com.nayasantha.api.catalogue.Product;
 import com.nayasantha.api.catalogue.ProductPrice;
-import com.nayasantha.api.catalogue.ProductPriceRepository;
+import com.nayasantha.api.catalogue.WeeklyPricingService;
 import com.nayasantha.api.catalogue.ProductRepository;
 import com.nayasantha.api.common.ApiException;
 import com.nayasantha.api.common.ErrorCode;
@@ -25,10 +25,10 @@ public class BasketService {
     private final BasketRepository baskets;
     private final BasketItemRepository items;
     private final ProductRepository products;
-    private final ProductPriceRepository prices;
+    private final WeeklyPricingService prices;
 
     public BasketService(BasketRepository baskets, BasketItemRepository items,
-                         ProductRepository products, ProductPriceRepository prices) {
+                         ProductRepository products, WeeklyPricingService prices) {
         this.baskets = baskets;
         this.items = items;
         this.products = products;
@@ -45,9 +45,9 @@ public class BasketService {
         Basket basket = currentBasket(userId);
         Product product = products.findById(productId)
                 .orElseThrow(() -> ApiException.notFound("Product"));
-        ProductPrice price = prices.findFirstByProductIdAndActiveTrueOrderByEffectiveFromDesc(productId)
-                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "No active price for product"));
+        ProductPrice price = prices.requireCurrent(productId);
 
+        if (!product.isActive()) throw ApiException.userError("This item is no longer available.");
         BasketItem item = items.findByBasketIdAndProductId(basket.getId(), productId).orElse(null);
         if (item == null) {
             item = new BasketItem();
@@ -58,7 +58,7 @@ public class BasketService {
             item.setQuantity(item.getQuantity() + quantity);
         }
         item.setUnitSellingPrice(price.getSellingPrice());
-        item.setUnitMaxPrice(price.getMaxPrice());
+        item.setUnitMaxPrice(price.getSellingPrice());
         item.setPriceVersion(price.getVersion() == null ? 0 : price.getVersion());
         items.save(item);
         touch(basket);
@@ -111,6 +111,7 @@ public class BasketService {
 
     private BasketDto toDto(Basket basket) {
         List<BasketItem> lines = items.findByBasketId(basket.getId());
+        Map<UUID, ProductPrice> currentPrices = prices.current(lines.stream().map(BasketItem::getProductId).toList());
         Map<UUID, Product> productById = new HashMap<>();
         if (!lines.isEmpty()) {
             products.findAllById(lines.stream().map(BasketItem::getProductId).toList())
@@ -122,6 +123,13 @@ public class BasketService {
         int count = 0;
         var itemDtos = new java.util.ArrayList<BasketItemDto>();
         for (BasketItem li : lines) {
+            ProductPrice current = currentPrices.get(li.getProductId());
+            if (current != null && (li.getUnitSellingPrice().compareTo(current.getSellingPrice()) != 0
+                    || li.getUnitMaxPrice().compareTo(current.getSellingPrice()) != 0)) {
+                li.setUnitSellingPrice(current.getSellingPrice());
+                li.setUnitMaxPrice(current.getSellingPrice());
+                items.save(li);
+            }
             BigDecimal lineEstimate = li.getUnitSellingPrice().multiply(BigDecimal.valueOf(li.getQuantity()));
             BigDecimal lineMax = li.getUnitMaxPrice().multiply(BigDecimal.valueOf(li.getQuantity()));
             estimate = estimate.add(lineEstimate);

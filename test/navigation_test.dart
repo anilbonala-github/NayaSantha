@@ -2,12 +2,33 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart'
+    hide ChangeNotifierProvider;
+import 'package:naya_santha/features/profile/presentation/profile_providers.dart';
+import 'package:naya_santha/features/profile/presentation/profile_screen.dart';
+import 'package:naya_santha/features/pantry/presentation/pantry_providers.dart';
+import 'package:naya_santha/features/pantry/presentation/pantry_screen.dart';
+import 'package:naya_santha/features/basket/presentation/basket_providers.dart';
+import 'package:naya_santha/features/basket/domain/basket_models.dart';
+import 'household_setup_test.dart'
+    show FakeProfileRepository, FakePantryRepository;
 
 import 'package:naya_santha/core/router/app_router.dart';
 import 'package:naya_santha/core/router/routes.dart';
 import 'package:naya_santha/core/theme/app_theme.dart';
 import 'package:naya_santha/state/app_state.dart';
 import 'package:naya_santha/state/assistant_state.dart';
+
+class EmptyBasket extends BasketNotifier {
+  @override
+  Future<Basket> build() async => const Basket(
+      id: 'test',
+      status: 'OPEN',
+      itemCount: 0,
+      estimatedTotal: 0,
+      maximumPayable: 0,
+      items: []);
+}
 
 /// Regression test for the tab-overlap bug: switching bottom-nav tabs used a
 /// slide transition, which briefly stacked the outgoing screen under the
@@ -21,34 +42,28 @@ void main() {
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
 
-    // The screens trip some debug-only design assertions (ListTile inside a
-    // colored DecoratedBox, occasional overflow at this exact surface size)
-    // that are unrelated to navigation and never fire in release. Filter them
-    // so this test measures only tab-switching behaviour.
-    final original = FlutterError.onError;
-    FlutterError.onError = (FlutterErrorDetails details) {
-      final String msg = details.exceptionAsString();
-      if (msg.contains('ListTile background color') ||
-          msg.contains('A RenderFlex overflowed')) {
-        return;
-      }
-      original?.call(details);
-    };
-    addTearDown(() => FlutterError.onError = original);
-
     final GoRouter router = buildRouter();
+    addTearDown(router.dispose);
+    router.go(Routes.profile);
     await tester.pumpWidget(
-      MultiProvider(
-        providers: [
-          ChangeNotifierProvider<AppState>(create: (_) => AppState()),
-          ChangeNotifierProvider<AssistantState>(
-              create: (_) => AssistantState()),
-        ],
-        child: MaterialApp.router(
-          routerConfig: router,
-          theme: AppTheme.light(),
-        ),
-      ),
+      ProviderScope(
+          overrides: [
+            profileRepositoryProvider
+                .overrideWithValue(FakeProfileRepository()),
+            pantryRepositoryProvider.overrideWithValue(FakePantryRepository()),
+            basketProvider.overrideWith(EmptyBasket.new),
+          ],
+          child: MultiProvider(
+            providers: [
+              ChangeNotifierProvider<AppState>(create: (_) => AppState()),
+              ChangeNotifierProvider<AssistantState>(
+                  create: (_) => AssistantState()),
+            ],
+            child: MaterialApp.router(
+              routerConfig: router,
+              theme: AppTheme.light(),
+            ),
+          )),
     );
     await tester.pump();
     return router;
@@ -61,7 +76,7 @@ void main() {
     // Land on the Profile tab.
     router.go(Routes.profile);
     await tester.pumpAndSettle();
-    expect(find.text('Your household'), findsWidgets,
+    expect(find.byType(ProfileScreen), findsWidgets,
         reason: 'Profile screen should be showing');
 
     // Switch to Pantry and pump a SINGLE frame. With NoTransitionPage the swap
@@ -70,13 +85,12 @@ void main() {
     router.go(Routes.pantry);
     await tester.pump();
 
-    expect(find.text('Your household'), findsNothing,
+    expect(find.byType(ProfileScreen), findsNothing,
         reason: 'previous tab must not stay mounted during the switch');
-    expect(find.textContaining('Pantry ('), findsWidgets,
+    expect(find.byType(PantryScreen), findsWidgets,
         reason: 'Pantry screen should be showing after the swap');
 
-    // Let the splash timer fire (harmlessly) so the test ends without a
-    // pending-timer failure.
-    await tester.pump(const Duration(seconds: 2));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
   });
 }

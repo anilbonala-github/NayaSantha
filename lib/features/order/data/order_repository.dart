@@ -16,9 +16,11 @@ class OrderRepository {
     double? maxPayable,
     bool substitutionConsent = true,
     String? deviceInfo,
+    int? planVersion,
   }) =>
       _wrap(() => _client.post('/weekly-plans/$planId/approve', body: {
             'pricePreference': pricePreference,
+            if (planVersion != null) 'planVersion': planVersion,
             if (maxPayable != null) 'maxPayable': maxPayable,
             'substitutionConsent': substitutionConsent,
             if (deviceInfo != null) 'deviceInfo': deviceInfo,
@@ -30,7 +32,9 @@ class OrderRepository {
   Future<List<CustomerOrder>> list() async {
     try {
       final data = await _client.get('/orders') as List;
-      return data.map((e) => CustomerOrder.fromJson(e as Map<String, dynamic>)).toList();
+      return data
+          .map((e) => CustomerOrder.fromJson(e as Map<String, dynamic>))
+          .toList();
     } on DioException catch (e) {
       throw ApiFailure.fromDio(e);
     }
@@ -41,14 +45,15 @@ class OrderRepository {
       _wrap(() => _client.post('/orders/$orderId/simulate-settlement'));
 
   Future<CustomerOrder> decide(String orderId, String decision) =>
-      _wrap(() => _client.post('/orders/$orderId/price-decision', body: {'decision': decision}));
+      _wrap(() => _client.post('/orders/$orderId/price-decision',
+          body: {'decision': decision}));
 
   Future<CustomerOrder> capture(String orderId) =>
       _wrap(() => _client.post('/payments/$orderId/capture'));
 
   /// Apply a coupon code to a settled order before payment.
-  Future<CustomerOrder> applyCoupon(String orderId, String code) =>
-      _wrap(() => _client.post('/orders/$orderId/apply-coupon', body: {'code': code}));
+  Future<CustomerOrder> applyCoupon(String orderId, String code) => _wrap(() =>
+      _client.post('/orders/$orderId/apply-coupon', body: {'code': code}));
 
   Future<CustomerOrder> removeCoupon(String orderId) =>
       _wrap(() => _client.deleteReturning('/orders/$orderId/coupon'));
@@ -65,7 +70,8 @@ class OrderRepository {
   /// Returns {configured, keyId, razorpayOrderId, amount, currency, ...}.
   Future<Map<String, dynamic>> createRazorpayOrder(String orderId) async {
     try {
-      final data = await _client.post('/payments/razorpay/order', body: {'orderId': orderId});
+      final data = await _client
+          .post('/payments/razorpay/order', body: {'orderId': orderId});
       return (data as Map).cast<String, dynamic>();
     } on DioException catch (e) {
       throw ApiFailure.fromDio(e);

@@ -11,7 +11,8 @@ class ProfileRepository {
 
   Future<Profile> getProfile() async {
     try {
-      return Profile.fromJson(await _client.get('/profile') as Map<String, dynamic>);
+      return Profile.fromJson(
+          await _client.get('/profile') as Map<String, dynamic>);
     } on DioException catch (e) {
       throw ApiFailure.fromDio(e);
     }
@@ -41,12 +42,16 @@ class ProfileRepository {
     double? weeklyBudget,
     String? defaultPriceConsent,
     String? language,
+    int? version,
   }) async {
     try {
-      return Household.fromJson(await _client.patch('/households/current', body: {
+      return Household.fromJson(
+          await _client.patch('/households/current', body: {
         if (weeklyBudget != null) 'weeklyBudget': weeklyBudget,
-        if (defaultPriceConsent != null) 'defaultPriceConsent': defaultPriceConsent,
+        if (defaultPriceConsent != null)
+          'defaultPriceConsent': defaultPriceConsent,
         if (language != null) 'language': language,
+        if (version != null) 'version': version,
       }) as Map<String, dynamic>);
     } on DioException catch (e) {
       throw ApiFailure.fromDio(e);
@@ -54,19 +59,52 @@ class ProfileRepository {
   }
 
   /// Adds one household member; allergies feed hard exclusions in the planner.
-  Future<void> addMember({
+  Future<HouseholdMember> addMember({
     String? name,
     int? age,
     required String dietaryType,
     String? allergies,
   }) async {
     try {
-      await _client.post('/household-members', body: {
+      final data = await _client.post('/household-members', body: {
         if (name != null && name.isNotEmpty) 'name': name,
         if (age != null) 'age': age,
         'dietaryType': dietaryType,
         if (allergies != null && allergies.isNotEmpty) 'allergies': allergies,
       });
+      return HouseholdMember.fromJson(data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiFailure.fromDio(e);
+    }
+  }
+
+  Future<HouseholdMember> updateMember({
+    required String id,
+    required String name,
+    int? age,
+    required String dietaryType,
+    required String allergies,
+    int? version,
+  }) async {
+    try {
+      final data = await _client.patch('/household-members/$id', body: {
+        'name': name,
+        if (age != null) 'age': age,
+        if (age == null) 'clearAge': true,
+        'dietaryType': dietaryType,
+        // Send an empty string to explicitly clear old allergies.
+        'allergies': allergies,
+        if (version != null) 'version': version,
+      });
+      return HouseholdMember.fromJson(data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiFailure.fromDio(e);
+    }
+  }
+
+  Future<void> removeMember(String id) async {
+    try {
+      await _client.delete('/household-members/$id');
     } on DioException catch (e) {
       throw ApiFailure.fromDio(e);
     }

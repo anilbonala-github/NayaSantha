@@ -2,13 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/account_screens.dart'
-    hide ProfileScreen, NotificationsScreen, WalletScreen, SubscriptionScreen, ReferralScreen;
+    hide
+        ProfileScreen,
+        NotificationsScreen,
+        WalletScreen,
+        SubscriptionScreen,
+        ReferralScreen;
 import '../../features/notifications/presentation/notifications_screen.dart';
 import '../../features/wallet/presentation/wallet_screen.dart';
 import '../../features/subscription/presentation/subscription_screen.dart';
 import '../../features/referral/presentation/referral_screen.dart';
 import '../../features/auth_screens.dart';
-import '../../features/checkout_screens.dart' hide OrdersScreen;
 import '../../features/recipe/presentation/recipes_screen.dart';
 import '../../features/budget/presentation/budget_screen.dart';
 import '../../features/coupon/presentation/offers_screen.dart';
@@ -16,6 +20,7 @@ import '../../features/onboarding/presentation/onboarding_screens.dart';
 import '../../features/address/presentation/address_screen.dart';
 import '../../features/assistant/presentation/assistant_screen.dart';
 import '../../features/basket/presentation/basket_screen.dart';
+import '../../features/basket/presentation/checkout_screen.dart';
 import '../../features/catalogue/presentation/catalogue_screen.dart';
 import '../../features/catalogue/presentation/product_detail_screen.dart';
 import '../../features/catalogue/presentation/search_screen.dart';
@@ -58,15 +63,21 @@ GoRouter buildRouter() {
       ),
       GoRoute(
         path: Routes.familyProfile,
-        builder: (_, __) => const FamilyProfileScreen(),
+        builder: (_, s) => FamilyProfileScreen(
+            editing: s.uri.queryParameters['edit'] == 'true'),
       ),
       GoRoute(
         path: Routes.address,
-        builder: (_, __) => const AddressScreen(),
+        builder: (_, s) => AddressScreen(
+            editing: s.uri.queryParameters['edit'] == 'true',
+            returnRoute: s.uri.queryParameters['from'] == 'checkout'
+                ? Routes.checkout
+                : Routes.profile),
       ),
       GoRoute(
         path: Routes.dietary,
-        builder: (_, __) => const DietaryScreen(),
+        builder: (_, s) =>
+            DietaryScreen(editing: s.uri.queryParameters['edit'] == 'true'),
       ),
       GoRoute(
         path: Routes.kitchen,
@@ -143,17 +154,17 @@ GoRouter buildRouter() {
             ProductDetailScreen(productId: s.pathParameters['id'] ?? ''),
       ),
       GoRoute(path: Routes.search, builder: (_, __) => const SearchScreen()),
-      GoRoute(path: Routes.checkout, builder: (_, __) => const CheckoutScreen()),
-      GoRoute(path: Routes.payment, builder: (_, __) => const PaymentScreen()),
+      GoRoute(
+          path: Routes.checkout,
+          builder: (_, __) => const BasketCheckoutScreen()),
+      GoRoute(path: Routes.payment, redirect: (_, __) => Routes.checkout),
       GoRoute(
         path: '${Routes.orderSuccess}/:id',
-        builder: (BuildContext c, GoRouterState s) =>
-            OrderSuccessScreen(orderId: s.pathParameters['id'] ?? ''),
+        redirect: (_, s) => '${Routes.orderBill}/${s.pathParameters['id']}',
       ),
       GoRoute(
         path: '${Routes.tracking}/:id',
-        builder: (BuildContext c, GoRouterState s) =>
-            TrackingScreen(orderId: s.pathParameters['id'] ?? ''),
+        redirect: (_, s) => '${Routes.orderBill}/${s.pathParameters['id']}',
       ),
       GoRoute(
         path: Routes.assistant,
@@ -163,8 +174,10 @@ GoRouter buildRouter() {
         path: Routes.notifications,
         builder: (_, __) => const NotificationsScreen(),
       ),
-      GoRoute(path: Routes.referral, builder: (_, __) => const ReferralScreen()),
-      GoRoute(path: Routes.settings, builder: (_, __) => const SettingsScreen()),
+      GoRoute(
+          path: Routes.referral, builder: (_, __) => const ReferralScreen()),
+      GoRoute(
+          path: Routes.settings, builder: (_, __) => const SettingsScreen()),
       GoRoute(path: Routes.ops, builder: (_, __) => const AdminPortalScreen()),
     ],
     errorBuilder: (BuildContext c, GoRouterState s) => Scaffold(

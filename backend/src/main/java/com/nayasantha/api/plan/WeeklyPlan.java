@@ -18,6 +18,9 @@ public class WeeklyPlan extends BaseEntity {
     @Column(name = "user_id", nullable = false)
     private UUID userId;
 
+    @Column(name = "pricing_mode", nullable = false)
+    private String pricingMode = "LEGACY_VARIABLE";
+
     @Column(name = "household_id")
     private UUID householdId;
 

@@ -1,6 +1,7 @@
 package com.nayasantha.api.household;
 
 import com.nayasantha.api.common.ApiException;
+import com.nayasantha.api.address.AddressRepository;
 import com.nayasantha.api.household.ProfileDtos.*;
 import com.nayasantha.api.user.User;
 import com.nayasantha.api.user.UserRepository;
@@ -17,12 +18,14 @@ public class ProfileService {
     private final UserRepository users;
     private final HouseholdRepository households;
     private final HouseholdMemberRepository members;
+    private final AddressRepository addresses;
 
     public ProfileService(UserRepository users, HouseholdRepository households,
-                          HouseholdMemberRepository members) {
+                          HouseholdMemberRepository members, AddressRepository addresses) {
         this.users = users;
         this.households = households;
         this.members = members;
+        this.addresses = addresses;
     }
 
     @Transactional(readOnly = true)
@@ -42,6 +45,21 @@ public class ProfileService {
     @Transactional
     public ProfileDto completeOnboarding(UUID userId) {
         User u = loadUser(userId);
+        if (u.getName() == null || u.getName().isBlank()) {
+            throw ApiException.userError("Add your name before finishing setup.");
+        }
+        Household household = households.findByOwnerUserId(userId)
+                .orElseThrow(() -> ApiException.userError("Add your household before finishing setup."));
+        if (members.findByHouseholdId(household.getId()).isEmpty()) {
+            throw ApiException.userError("Add at least one household member before finishing setup.");
+        }
+        if (household.getWeeklyBudget() == null || household.getWeeklyBudget().signum() <= 0) {
+            throw ApiException.userError("Set a weekly budget before finishing setup.");
+        }
+        if (addresses.findByUserIdOrderByIsDefaultDescCreatedAtDesc(userId).stream()
+                .noneMatch(a -> a.isDefault() && a.isServiceable())) {
+            throw ApiException.userError("Choose a delivery address in a serviceable area before finishing setup.");
+        }
         u.setProfileCompletionStatus(User.ProfileCompletionStatus.COMPLETE);
         return ProfileDto.from(users.save(u));
     }
@@ -125,6 +143,7 @@ public class ProfileService {
     private void applyMember(HouseholdMember m, UpsertMemberRequest req) {
         if (req.name() != null) m.setName(req.name());
         if (req.age() != null) m.setAge(req.age());
+        if (Boolean.TRUE.equals(req.clearAge())) m.setAge(null);
         if (req.dietaryType() != null) m.setDietaryType(HouseholdMember.DietaryType.valueOf(req.dietaryType()));
         if (req.allergies() != null) m.setAllergies(req.allergies());
         if (req.nutritionNotes() != null) m.setNutritionNotes(req.nutritionNotes());

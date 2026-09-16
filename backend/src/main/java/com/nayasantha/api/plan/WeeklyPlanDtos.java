@@ -15,7 +15,7 @@ public final class WeeklyPlanDtos {
 
     public record PlanDto(UUID id, LocalDate weekStart, String status, String aiSource,
                           String aiExplanation, BigDecimal estimatedTotal, BigDecimal maximumPayable,
-                          int itemCount, List<PlanItemDto> items, Long version) {}
+                          int itemCount, List<PlanItemDto> items, Long version, String pricingMode) {}
 
     public record UpdatePlanItemRequest(int quantity, Long version) {}
 }

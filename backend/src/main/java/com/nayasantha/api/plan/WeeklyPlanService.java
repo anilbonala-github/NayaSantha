@@ -2,7 +2,7 @@ package com.nayasantha.api.plan;
 
 import com.nayasantha.api.catalogue.Product;
 import com.nayasantha.api.catalogue.ProductPrice;
-import com.nayasantha.api.catalogue.ProductPriceRepository;
+import com.nayasantha.api.catalogue.WeeklyPricingService;
 import com.nayasantha.api.catalogue.ProductRepository;
 import com.nayasantha.api.common.ApiException;
 import com.nayasantha.api.config.AppProperties;
@@ -34,7 +34,7 @@ public class WeeklyPlanService {
     private final WeeklyPlanRepository plans;
     private final WeeklyPlanItemRepository planItems;
     private final ProductRepository products;
-    private final ProductPriceRepository prices;
+    private final WeeklyPricingService prices;
     private final HouseholdRepository households;
     private final HouseholdMemberRepository members;
     private final PantryService pantryService;
@@ -45,7 +45,7 @@ public class WeeklyPlanService {
     private static final BigDecimal DEFAULT_BUDGET = BigDecimal.valueOf(1500);
 
     public WeeklyPlanService(WeeklyPlanRepository plans, WeeklyPlanItemRepository planItems,
-                             ProductRepository products, ProductPriceRepository prices,
+                             ProductRepository products, WeeklyPricingService prices,
                              HouseholdRepository households, HouseholdMemberRepository members,
                              PantryService pantryService, GeminiPlanner gemini, AppProperties props,
                              com.nayasantha.api.settings.SettingsService settings) {
@@ -85,6 +85,7 @@ public class WeeklyPlanService {
         // 2) Validate + price + budget-cap deterministically (never trust the model).
         WeeklyPlan plan = new WeeklyPlan();
         plan.setUserId(userId);
+        plan.setPricingMode("FIXED_WEEKLY");
         plan.setHouseholdId(household == null ? null : household.getId());
         plan.setWeekStart(LocalDate.now().with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY)));
         plan.setAiSource(proposal.source());
@@ -108,14 +109,14 @@ public class WeeklyPlanService {
             item.setPlanId(plan.getId());
             item.setProductId(pr.product().getId());
             item.setQuantity(qty);
-            item.setUnitForecastPrice(pr.price().getForecastPrice());
-            item.setUnitMaxPrice(pr.price().getMaxPrice());
+            item.setUnitForecastPrice(pr.price().getSellingPrice());
+            item.setUnitMaxPrice(pr.price().getSellingPrice());
             item.setReason(line.reason());
             planItems.save(item);
             added.add(pr.product().getId());
 
             estimate = estimate.add(lineEstimate);
-            maximum = maximum.add(pr.price().getMaxPrice().multiply(BigDecimal.valueOf(qty)));
+            maximum = maximum.add(pr.price().getSellingPrice().multiply(BigDecimal.valueOf(qty)));
         }
         plan.setEstimatedTotal(estimate);
         plan.setMaximumPayable(maxPayable(estimate));  // Vol2A §9: RoundUpTo5(estimate × 1.025)
@@ -124,9 +125,7 @@ public class WeeklyPlanService {
 
     /** Guaranteed maximum payable = round up to nearest 5 of estimate × capFactor (Vol2A §9). */
     public BigDecimal maxPayable(BigDecimal estimate) {
-        BigDecimal five = BigDecimal.valueOf(5);
-        return estimate.multiply(settings.capFactor())
-                .divide(five, 0, RoundingMode.CEILING).multiply(five);
+        return estimate;
     }
 
     @Transactional(readOnly = true)
@@ -148,8 +147,11 @@ public class WeeklyPlanService {
     @Transactional
     public WeeklyPlanDtos.PlanDto updateItem(UUID userId, UUID planId, UUID itemId,
                                              int quantity, Long version) {
-        WeeklyPlan plan = plans.findById(planId).filter(p -> p.getUserId().equals(userId))
+        WeeklyPlan plan = plans.lockById(planId).filter(p -> p.getUserId().equals(userId))
                 .orElseThrow(() -> ApiException.notFound("Weekly plan"));
+        if (plan.getStatus() != WeeklyPlan.Status.DRAFT) {
+            throw ApiException.userError("This plan is already confirmed. Generate a new plan to make changes.");
+        }
         WeeklyPlanItem item = planItems.findById(itemId).filter(i -> i.getPlanId().equals(planId))
                 .orElseThrow(() -> ApiException.notFound("Plan item"));
         if (version != null && !version.equals(item.getVersion())) {
@@ -193,16 +195,13 @@ public class WeeklyPlanService {
         }
         return new WeeklyPlanDtos.PlanDto(plan.getId(), plan.getWeekStart(), plan.getStatus().name(),
                 plan.getAiSource().name(), plan.getAiExplanation(), plan.getEstimatedTotal(),
-                plan.getMaximumPayable(), count, itemDtos, plan.getVersion());
+                plan.getMaximumPayable(), count, itemDtos, plan.getVersion(), plan.getPricingMode());
     }
 
     // --- proposal helpers --------------------------------------------------
     private Map<String, Priced> loadCatalogue() {
         List<Product> active = products.findByActiveTrueOrderByNameAsc();
-        Map<UUID, ProductPrice> priceByProduct = new HashMap<>();
-        for (ProductPrice pp : prices.findByProductIdInAndActiveTrue(active.stream().map(Product::getId).toList())) {
-            priceByProduct.putIfAbsent(pp.getProductId(), pp);
-        }
+        Map<UUID, ProductPrice> priceByProduct = prices.current(active.stream().map(Product::getId).toList());
         Map<String, Priced> out = new LinkedHashMap<>();
         for (Product p : active) {
             ProductPrice pp = priceByProduct.get(p.getId());

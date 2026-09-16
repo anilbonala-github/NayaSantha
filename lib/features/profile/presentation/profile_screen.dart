@@ -43,7 +43,19 @@ class ProfileScreen extends ConsumerWidget {
               const SizedBox(height: Gap.lg),
               _header(profile),
               const SizedBox(height: Gap.lg),
-              _householdCard(ref),
+              if (profile.profileCompletionStatus != 'COMPLETE') ...[
+                NsCard(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    const Text('Finish household setup', style: TextStyle(fontWeight: FontWeight.w700)),
+                    const SizedBox(height: Gap.sm),
+                    const Text('Continue setup with your saved household members and address.'),
+                    const SizedBox(height: Gap.md),
+                    FilledButton(onPressed: () => context.go(Routes.familyProfile), child: const Text('Continue setup')),
+                  ]),
+                ),
+                const SizedBox(height: Gap.lg),
+              ],
+              _householdCard(context, ref),
               const SizedBox(height: Gap.lg),
               NsCard(
                 padding: EdgeInsets.zero,
@@ -131,7 +143,7 @@ class ProfileScreen extends ConsumerWidget {
     ]);
   }
 
-  Widget _householdCard(WidgetRef ref) {
+  Widget _householdCard(BuildContext context, WidgetRef ref) {
     final householdAsync = ref.watch(householdProvider);
     return NsCard(
       child: householdAsync.when(
@@ -140,9 +152,8 @@ class ProfileScreen extends ConsumerWidget {
         error: (_, __) => const Text('Household details unavailable',
             style: TextStyle(color: AppColors.textSecondary)),
         data: (h) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: <Widget>[
-          Row(children: <Widget>[
+          Wrap(spacing: Gap.md, runSpacing: Gap.sm, children: <Widget>[
             const Text('Household', style: TextStyle(fontWeight: FontWeight.w700)),
-            const Spacer(),
             Text('Budget ₹${h.weeklyBudget.toStringAsFixed(0)}/week',
                 style: const TextStyle(color: AppColors.textSecondary)),
           ]),
@@ -157,6 +168,15 @@ class ProfileScreen extends ConsumerWidget {
                 ),
             ]),
           ],
+          const SizedBox(height: Gap.md),
+          Wrap(spacing: Gap.sm, runSpacing: Gap.sm, children: [
+            TextButton.icon(onPressed: () => context.go('${Routes.familyProfile}?edit=true'),
+                icon: const Icon(Icons.people_outline), label: const Text('Edit household')),
+            TextButton.icon(onPressed: () => context.go('${Routes.dietary}?edit=true'),
+                icon: const Icon(Icons.savings_outlined), label: const Text('Edit budget')),
+            TextButton.icon(onPressed: () => context.go('${Routes.address}?edit=true'),
+                icon: const Icon(Icons.location_on_outlined), label: const Text('Addresses')),
+          ]),
         ]),
       ),
     );

@@ -17,27 +17,40 @@ class Profile {
   final String role; // CUSTOMER | ADMIN
 
   bool get isAdmin => role == 'ADMIN';
-  String get displayName => (name == null || name!.isEmpty) ? 'NayaSantha member' : name!;
-  String get initial => displayName.isNotEmpty ? displayName[0].toUpperCase() : 'N';
+  String get displayName =>
+      (name == null || name!.isEmpty) ? 'NayaSantha member' : name!;
+  String get initial =>
+      displayName.isNotEmpty ? displayName[0].toUpperCase() : 'N';
 
   factory Profile.fromJson(Map<String, dynamic> j) => Profile(
         id: j['id'] as String,
         mobile: j['mobile'] as String,
         name: j['name'] as String?,
         email: j['email'] as String?,
-        profileCompletionStatus: j['profileCompletionStatus'] as String? ?? 'NEW',
+        profileCompletionStatus:
+            j['profileCompletionStatus'] as String? ?? 'NEW',
         role: (j['role'] as String?) ?? 'CUSTOMER',
       );
 }
 
 class HouseholdMember {
-  const HouseholdMember({this.name, this.age, required this.dietaryType, this.allergies});
+  const HouseholdMember(
+      {required this.id,
+      this.version,
+      this.name,
+      this.age,
+      required this.dietaryType,
+      this.allergies});
+  final String id;
+  final int? version;
   final String? name;
   final int? age;
   final String dietaryType;
   final String? allergies;
 
   factory HouseholdMember.fromJson(Map<String, dynamic> j) => HouseholdMember(
+        id: j['id'] as String,
+        version: (j['version'] as num?)?.toInt(),
         name: j['name'] as String?,
         age: (j['age'] as num?)?.toInt(),
         dietaryType: j['dietaryType'] as String? ?? 'VEG',
@@ -50,17 +63,21 @@ class Household {
     required this.weeklyBudget,
     required this.defaultPriceConsent,
     this.members = const <HouseholdMember>[],
+    this.version,
   });
 
   final double weeklyBudget;
+  final int? version;
   final String defaultPriceConsent;
   final List<HouseholdMember> members;
 
   factory Household.fromJson(Map<String, dynamic> j) => Household(
+        version: (j['version'] as num?)?.toInt(),
         weeklyBudget: (j['weeklyBudget'] as num?)?.toDouble() ?? 0,
         defaultPriceConsent: j['defaultPriceConsent'] as String? ?? 'ASK',
         members: (j['members'] as List?)
-                ?.map((e) => HouseholdMember.fromJson(e as Map<String, dynamic>))
+                ?.map(
+                    (e) => HouseholdMember.fromJson(e as Map<String, dynamic>))
                 .toList() ??
             const <HouseholdMember>[],
       );

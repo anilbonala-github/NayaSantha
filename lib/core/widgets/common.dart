@@ -89,20 +89,17 @@ class NsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Widget content = Container(
-      padding: padding,
-      decoration: BoxDecoration(
-        color: color,
+    final content = Padding(padding: padding, child: child);
+    return Material(
+      color: color,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(Radii.lg),
-        border: Border.all(color: borderColor),
+        side: BorderSide(color: borderColor),
       ),
-      child: child,
-    );
-    if (onTap == null) return content;
-    return InkWell(
-      borderRadius: BorderRadius.circular(Radii.lg),
-      onTap: onTap,
-      child: content,
+      clipBehavior: Clip.antiAlias,
+      child: onTap == null
+          ? content
+          : InkWell(onTap: onTap, child: content),
     );
   }
 }

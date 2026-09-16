@@ -3,6 +3,7 @@ package com.nayasantha.api.household;
 import com.nayasantha.api.user.User;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.PositiveOrZero;
 
 import java.math.BigDecimal;
@@ -40,6 +41,7 @@ public final class ProfileDtos {
         }
     }
 
-    public record UpsertMemberRequest(String name, @Min(0) Integer age, String dietaryType,
-                                      String allergies, String nutritionNotes, Long version) {}
+    public record UpsertMemberRequest(String name, @Min(0) @Max(120) Integer age, String dietaryType,
+                                      String allergies, String nutritionNotes, Long version,
+                                      Boolean clearAge) {}
 }

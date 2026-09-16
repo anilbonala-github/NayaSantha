@@ -20,10 +20,10 @@ public class CatalogueService {
 
     private final CategoryRepository categories;
     private final ProductRepository products;
-    private final ProductPriceRepository prices;
+    private final WeeklyPricingService prices;
 
     public CatalogueService(CategoryRepository categories, ProductRepository products,
-                            ProductPriceRepository prices) {
+                            WeeklyPricingService prices) {
         this.categories = categories;
         this.products = products;
         this.prices = prices;
@@ -56,8 +56,7 @@ public class CatalogueService {
 
     public ProductDto getProduct(UUID id) {
         Product p = products.findById(id).orElseThrow(() -> ApiException.notFound("Product"));
-        ProductPrice price = prices.findFirstByProductIdAndActiveTrueOrderByEffectiveFromDesc(id)
-                .orElse(null);
+        ProductPrice price = prices.current(List.of(id)).get(id);
         return ProductDto.from(p, price);
     }
 
@@ -69,11 +68,6 @@ public class CatalogueService {
     }
 
     private Map<UUID, ProductPrice> loadPrices(List<UUID> productIds) {
-        Map<UUID, ProductPrice> map = new HashMap<>();
-        if (productIds.isEmpty()) return map;
-        for (ProductPrice pp : prices.findByProductIdInAndActiveTrue(productIds)) {
-            map.putIfAbsent(pp.getProductId(), pp);   // one active price per product/zone
-        }
-        return map;
+        return prices.current(productIds);
     }
 }

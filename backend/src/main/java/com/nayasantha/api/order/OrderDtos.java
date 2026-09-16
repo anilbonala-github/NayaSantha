@@ -16,7 +16,7 @@ public final class OrderDtos {
             @NotNull String pricePreference,   // SMART_SUBSTITUTE | KEEP_EXACT_ITEMS | ASK_BEFORE_CHANGE | REMOVE_EXPENSIVE_ITEMS
             BigDecimal maxPayable,             // optional stricter cap
             Boolean substitutionConsent,
-            String deviceInfo) {}
+            String deviceInfo, Long planVersion) {}
 
     public record PriceDecisionRequest(@NotNull String decision) {} // ACCEPT | REMOVE_EXPENSIVE | CANCEL
 
@@ -34,7 +34,7 @@ public final class OrderDtos {
                            List<OrderItemDto> items, ExceptionDto exception, Instant createdAt, Long version,
                            BigDecimal refundedAmount, List<RefundDto> refunds,
                            String couponCode, BigDecimal discountAmount, BigDecimal amountPayable,
-                           BigDecimal walletApplied, BigDecimal gatewayPayable, BigDecimal deliveryFee) {}
+                           BigDecimal walletApplied, BigDecimal gatewayPayable, BigDecimal deliveryFee, String pricingMode) {}
 
     public record RefundDto(UUID id, BigDecimal amount, String type, String reason,
                             String reference, String status, Instant createdAt) {}

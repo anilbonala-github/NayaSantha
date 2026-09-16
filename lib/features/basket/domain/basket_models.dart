@@ -1,5 +1,4 @@
-/// Basket domain models mirroring the backend (Vol2 §6.6). Estimate and
-/// guaranteed maximum are computed by the server, never the client.
+// Basket domain models. Prices and totals are computed by the server.
 
 class BasketItem {
   const BasketItem({

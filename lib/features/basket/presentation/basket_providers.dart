@@ -17,7 +17,8 @@ class BasketNotifier extends AsyncNotifier<Basket> {
 
   Future<void> add(String productId, {int quantity = 1}) async {
     state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() => _repo.addItem(productId, quantity: quantity));
+    state = await AsyncValue.guard(
+        () => _repo.addItem(productId, quantity: quantity));
   }
 
   Future<void> setQuantity(String itemId, int quantity, {int? version}) async {
@@ -41,5 +42,6 @@ final basketProvider =
     AsyncNotifierProvider<BasketNotifier, Basket>(BasketNotifier.new);
 
 /// Convenience: current basket item count for the nav badge (0 while loading).
-final basketCountProvider = Provider<int>((ref) =>
-    ref.watch(basketProvider).maybeWhen(data: (b) => b.itemCount, orElse: () => 0));
+final basketCountProvider = Provider<int>((ref) => ref
+    .watch(basketProvider)
+    .maybeWhen(data: (b) => b.itemCount, orElse: () => 0));

@@ -36,6 +36,21 @@ class DashboardScreen extends ConsumerWidget {
                 style: TextStyle(color: AppColors.textSecondary)),
             const SizedBox(height: Gap.lg),
 
+            ref.watch(profileProvider).maybeWhen(
+              data: (p) => p.profileCompletionStatus == 'COMPLETE'
+                  ? const SizedBox.shrink()
+                  : Padding(
+                      padding: const EdgeInsets.only(bottom: Gap.lg),
+                      child: NsCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        const Text('Finish household setup', style: TextStyle(fontWeight: FontWeight.w700)),
+                        const SizedBox(height: Gap.sm),
+                        const Text('Add your household, delivery address and budget for a more useful weekly plan.'),
+                        const SizedBox(height: Gap.md),
+                        FilledButton(onPressed: () => context.go(Routes.familyProfile), child: const Text('Continue setup')),
+                      ])),
+                    ),
+              orElse: () => const SizedBox.shrink(),
+            ),
             _PlanCard(),
             const SizedBox(height: Gap.lg),
 

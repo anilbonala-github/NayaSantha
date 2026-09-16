@@ -21,8 +21,11 @@ class CustomerOrder {
     this.deliveryFee = 0,
     this.items = const <OrderLine>[],
     this.exception,
+    this.pricingMode = 'LEGACY_VARIABLE',
   });
 
+  final String pricingMode;
+  bool get isFixedPrice => pricingMode == 'FIXED_WEEKLY';
   final String id;
   final String status;
   final String pricePreference;
@@ -50,14 +53,17 @@ class CustomerOrder {
   bool get hasWallet => walletApplied > 0;
   bool get canApplyCoupon => status == 'FINALIZED';
   bool get canUseWallet => status == 'FINALIZED';
+
   /// Amount owed after any coupon discount (before wallet), else final total.
   double? get payable => amountPayable ?? finalTotal;
+
   /// What the gateway charges now: after coupon and wallet.
   double? get toPay => gatewayPayable ?? payable;
 
   static double? _d(dynamic v) => v == null ? null : (v as num).toDouble();
 
   factory CustomerOrder.fromJson(Map<String, dynamic> j) => CustomerOrder(
+        pricingMode: j['pricingMode'] as String? ?? 'LEGACY_VARIABLE',
         id: j['id'] as String,
         status: j['status'] as String,
         pricePreference: j['pricePreference'] as String,
@@ -127,7 +133,9 @@ class OrderLine {
 
 class OrderException {
   const OrderException(
-      {required this.reason, required this.finalTotal, required this.maxPayable});
+      {required this.reason,
+      required this.finalTotal,
+      required this.maxPayable});
   final String reason;
   final double finalTotal;
   final double maxPayable;

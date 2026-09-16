@@ -28,6 +28,12 @@ public class ProductPrice {
 
     private BigDecimal mrp;
 
+    @Column(name = "price_week_start")
+    private java.time.LocalDate priceWeekStart;
+
+    @Column(name = "published_by")
+    private UUID publishedBy;
+
     @Column(name = "forecast_price", nullable = false)
     private BigDecimal forecastPrice;
 
