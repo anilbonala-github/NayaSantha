@@ -23,13 +23,20 @@ class ApiFailure implements Exception {
 
   /// Builds a failure from a Dio error, reading the backend envelope when present.
   factory ApiFailure.fromDio(DioException e) {
-    if (e.type == DioExceptionType.connectionError ||
-        e.type == DioExceptionType.connectionTimeout ||
+    if (e.type == DioExceptionType.connectionTimeout ||
         e.type == DioExceptionType.receiveTimeout ||
         e.type == DioExceptionType.sendTimeout) {
       return const ApiFailure(
-        errorCode: 'OFFLINE',
-        userMessage: "You appear to be offline. We'll retry when you're back.",
+        errorCode: 'SERVER_TIMEOUT',
+        userMessage:
+            'The service is taking longer than expected. It may be starting up. Please wait two minutes and try again.',
+      );
+    }
+    if (e.type == DioExceptionType.connectionError) {
+      return const ApiFailure(
+        errorCode: 'CONNECTION_ERROR',
+        userMessage:
+            'Unable to connect. Check your internet connection and try again.',
         isOffline: true,
       );
     }
@@ -37,9 +44,17 @@ class ApiFailure implements Exception {
     if (data is Map && data['errorCode'] != null) {
       return ApiFailure(
         errorCode: data['errorCode'] as String,
-        userMessage: (data['userMessage'] as String?) ?? 'Something went wrong.',
+        userMessage:
+            (data['userMessage'] as String?) ?? 'Something went wrong.',
         developerMessage: data['developerMessage'] as String?,
         traceId: data['traceId'] as String?,
+      );
+    }
+    if ([502, 503, 504].contains(e.response?.statusCode)) {
+      return const ApiFailure(
+        errorCode: 'SERVICE_UNAVAILABLE',
+        userMessage:
+            'The service is temporarily unavailable or starting up. Please wait two minutes and try again.',
       );
     }
     return ApiFailure(
