@@ -15,6 +15,7 @@ import 'package:naya_santha/features/order/domain/order_models.dart';
 class CheckoutRepo extends BasketRepository {
   CheckoutRepo() : super(ApiClient(tokenStore: TokenStore()));
   bool failPreview = false, failConfirm = false;
+  bool rejectReview = false;
   int confirmations = 0, previews = 0;
   final submitted = <CheckoutPreview>[];
   CheckoutPreview review = const CheckoutPreview(
@@ -48,6 +49,11 @@ class CheckoutRepo extends BasketRepository {
   Future<CustomerOrder> checkout(CheckoutPreview preview) async {
     confirmations++;
     submitted.add(preview);
+    if (rejectReview) {
+      throw const ApiFailure(
+          errorCode: 'VALIDATION_ERROR',
+          userMessage: 'Prices changed. Refresh the review before confirming.');
+    }
     if (failConfirm)
       throw const ApiFailure(
           errorCode: 'OFFLINE',
@@ -119,6 +125,53 @@ void main() {
     expect(repo.confirmations, 2);
     expect(repo.previews, 1);
     expect(repo.submitted[0].quoteToken, repo.submitted[1].quoteToken);
+    expect(find.text('Order persisted-order'), findsOneWidget);
+  });
+  testWidgets('failed refresh removes the old confirmation action',
+      (tester) async {
+    final repo = CheckoutRepo()..failConfirm = true;
+    await show(tester, repo);
+    await tester.tap(find.text('Confirm order · ₹190.00'));
+    await tester.pumpAndSettle();
+    repo.failPreview = true;
+    await tester.tap(find.text('Refresh review'));
+    await tester.pumpAndSettle();
+    expect(find.text('Confirm order · ₹190.00'), findsNothing);
+    expect(
+        tester
+            .widget<FilledButton>(
+                find.widgetWithText(FilledButton, 'Review required'))
+            .onPressed,
+        isNull);
+    expect(repo.confirmations, 1);
+  });
+  testWidgets('rejected review requires refresh before another confirmation',
+      (tester) async {
+    final repo = CheckoutRepo()..rejectReview = true;
+    await show(tester, repo);
+    await tester.tap(find.text('Confirm order · ₹190.00'));
+    await tester.pumpAndSettle();
+    expect(find.text('Confirm order · ₹190.00'), findsNothing);
+    expect(
+        tester
+            .widget<FilledButton>(
+                find.widgetWithText(FilledButton, 'Review required'))
+            .onPressed,
+        isNull);
+    repo.rejectReview = false;
+    repo.review = const CheckoutPreview(
+        basketId: 'real-basket',
+        quoteToken: 'updated-token',
+        items: [],
+        subtotal: 160,
+        deliveryFee: 39,
+        total: 199,
+        deliveryAddress: 'Saved apartment, Hyderabad');
+    await tester.tap(find.text('Refresh review'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Confirm order · ₹199.00'));
+    await tester.pumpAndSettle();
+    expect(repo.submitted.last.quoteToken, 'updated-token');
     expect(find.text('Order persisted-order'), findsOneWidget);
   });
   testWidgets(

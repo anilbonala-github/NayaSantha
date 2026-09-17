@@ -34,6 +34,7 @@ class _BasketCheckoutScreenState extends ConsumerState<BasketCheckoutScreen> {
     setState(() {
       _busy = true;
       _error = null;
+      _review = null;
     });
     try {
       final review = await ref.read(basketRepositoryProvider).checkoutPreview();
@@ -57,7 +58,16 @@ class _BasketCheckoutScreenState extends ConsumerState<BasketCheckoutScreen> {
       ref.invalidate(ordersProvider);
       if (mounted) context.go(Routes.orderBillPath(order.id));
     } catch (e) {
-      if (mounted) setState(() => _error = _message(e));
+      if (mounted) {
+        setState(() {
+          _error = _message(e);
+          // A rejected review must be refreshed. Keep the same basket/token
+          // after transport failures so retrying can recover the existing order.
+          if (e is ApiFailure && e.errorCode == 'VALIDATION_ERROR') {
+            _review = null;
+          }
+        });
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
