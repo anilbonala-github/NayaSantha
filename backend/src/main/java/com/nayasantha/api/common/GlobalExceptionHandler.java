@@ -51,6 +51,11 @@ public class GlobalExceptionHandler {
         return build(ErrorCode.VALIDATION_ERROR, detail);
     }
 
+    @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
+    public ResponseEntity<ApiError> handleDuplicate(org.springframework.dao.DataIntegrityViolationException ex) {
+        return build(ErrorCode.VALIDATION_ERROR, "Conflicting or invalid record", "That SKU or category already exists, or a referenced record changed. Reload and check the details.");
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiError> handleUnexpected(Exception ex) {
         return build(ErrorCode.INTERNAL_ERROR, ex.getClass().getSimpleName() + ": " + ex.getMessage());

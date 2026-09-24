@@ -36,6 +36,9 @@ public class AuthSession {
     @Column(name = "user_agent")
     private String userAgent;
 
+    @Column(name = "staff_verified", nullable = false)
+    private boolean staffVerified = false;
+
     public boolean isActive() {
         return revokedAt == null && expiresAt.isAfter(Instant.now());
     }

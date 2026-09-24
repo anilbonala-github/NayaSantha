@@ -1,3 +1,4 @@
+import '../../features/admin/admin_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -47,6 +48,9 @@ GoRouter buildRouter() {
   return GoRouter(
     initialLocation: Routes.splash,
     routes: <RouteBase>[
+      GoRoute(
+          path: '/admin/login', builder: (_, __) => const AdminLoginScreen()),
+      GoRoute(path: '/admin', builder: (_, __) => const CatalogueAdminScreen()),
       GoRoute(
         path: Routes.splash,
         builder: (_, __) => const SplashScreen(),

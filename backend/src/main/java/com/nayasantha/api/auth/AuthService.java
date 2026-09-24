@@ -46,11 +46,14 @@ public class AuthService {
             return u;
         });
         user.setLastLoginAt(Instant.now());
-        // Grant the ops-portal ADMIN role to configured mobiles.
-        user.setRole(props.getAdminMobiles().contains(mobile) ? User.Role.ADMIN : User.Role.CUSTOMER);
+        if (user.getStatus() != User.Status.ACTIVE) throw ApiException.forbidden("Account is not active");
+        // Bootstrap only after real verification. Never overwrite a stored staff role on login.
+        if (!props.getOtp().isDevMode() && mobile.equals(props.getOwnerMobile())) {
+            user.setRole(User.Role.OWNER);
+        }
         user = users.save(user);
 
-        return issueTokens(user, userAgent);
+        return issueTokens(user, userAgent, !props.getOtp().isDevMode());
     }
 
     @Transactional
@@ -67,7 +70,7 @@ public class AuthService {
 
         User user = users.findById(session.getUserId())
                 .orElseThrow(() -> ApiException.notFound("User"));
-        return issueTokens(user, userAgent);
+        return issueTokens(user, userAgent, session.isStaffVerified() && !props.getOtp().isDevMode());
     }
 
     @Transactional
@@ -78,12 +81,14 @@ public class AuthService {
         });
     }
 
-    private AuthDtos.TokenResponse issueTokens(User user, String userAgent) {
-        String accessToken = jwtService.issueAccessToken(user.getId(), user.getMobile(), user.getRole().name());
+    private AuthDtos.TokenResponse issueTokens(User user, String userAgent, boolean staffVerified) {
+        if (user.getStatus() != User.Status.ACTIVE) throw ApiException.forbidden("Account is not active");
+        String accessToken = jwtService.issueAccessToken(user.getId(), user.getMobile(), user.getRole().name(), user.getRoleVersion(), staffVerified);
 
         String refreshRaw = Hashing.randomToken();
         AuthSession session = new AuthSession();
         session.setUserId(user.getId());
+        session.setStaffVerified(staffVerified);
         session.setRefreshTokenHash(Hashing.sha256(refreshRaw));
         session.setExpiresAt(Instant.now().plusSeconds(props.getJwt().getRefreshTokenTtlSeconds()));
         session.setUserAgent(userAgent);

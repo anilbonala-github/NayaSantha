@@ -14,15 +14,19 @@ final categoriesProvider = FutureProvider<List<Category>>(
 
 /// Filter for the product grid: optional category + search query.
 class ProductQuery {
-  const ProductQuery({this.categoryId, this.query});
+  const ProductQuery({this.categoryId, this.query, this.page = 0});
+  final int page;
   final String? categoryId;
   final String? query;
 
   @override
   bool operator ==(Object other) =>
-      other is ProductQuery && other.categoryId == categoryId && other.query == query;
+      other is ProductQuery &&
+      other.categoryId == categoryId &&
+      other.query == query &&
+      other.page == page;
   @override
-  int get hashCode => Object.hash(categoryId, query);
+  int get hashCode => Object.hash(categoryId, query, page);
 }
 
 /// First page of products for a given filter.
@@ -31,11 +35,11 @@ final productsProvider =
   return ref.watch(catalogueRepositoryProvider).products(
         categoryId: q.categoryId,
         query: q.query,
+        page: q.page,
       );
 });
 
 /// Single product detail (Vol2 §6.3 product page).
-final productProvider =
-    FutureProvider.family<Product, String>((ref, id) {
+final productProvider = FutureProvider.family<Product, String>((ref, id) {
   return ref.watch(catalogueRepositoryProvider).product(id);
 });

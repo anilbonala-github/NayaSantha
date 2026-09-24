@@ -45,5 +45,9 @@ public class Product extends BaseEntity {
 
     @Column(nullable = false)
     private boolean active = true;
+    @Column(name = "available", nullable = false)
+    private boolean available = true;
+    @Column(name = "publication_status", nullable = false)
+    private String publicationStatus = "PUBLISHED";
     // Note: the `nutrition` jsonb column exists in the DB but is not mapped yet.
 }

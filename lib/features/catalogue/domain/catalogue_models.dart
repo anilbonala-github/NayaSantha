@@ -32,6 +32,7 @@ class Product {
     required this.categoryId,
     required this.unit,
     this.emoji,
+    this.imageUrl,
     this.description,
     this.origin,
     this.farmer,
@@ -50,6 +51,7 @@ class Product {
   final String categoryId;
   final String unit;
   final String? emoji;
+  final String? imageUrl;
   final String? description;
   final String? origin;
   final String? farmer;
@@ -72,6 +74,7 @@ class Product {
         categoryId: j['categoryId'] as String,
         unit: j['unit'] as String,
         emoji: j['emoji'] as String?,
+        imageUrl: j['imageUrl'] as String?,
         description: j['description'] as String?,
         origin: j['origin'] as String?,
         farmer: j['farmer'] as String?,

@@ -70,6 +70,88 @@ class DatabaseCheckoutTest {
         assertEquals(review.path("total").decimalValue(), saved.path("amountPayable").decimalValue());
     }
 
+
+    @Autowired com.nayasantha.api.security.JwtService jwt;
+    @Autowired com.nayasantha.api.config.AppProperties props;
+    private String tokenFor(String role) {
+        db.update("update users set role=? where id=?",role,user);
+        return jwt.issueAccessToken(user,"9000000010",role);
+    }
+    private void denied(String method,String path,String token,int expected) throws Exception {
+        var req=org.springframework.test.web.servlet.request.MockMvcRequestBuilders.request(org.springframework.http.HttpMethod.valueOf(method),path)
+            .header("Authorization","Bearer "+token).contentType("application/json").content("{}");
+        http.perform(req).andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().is(expected));
+    }
+    @Test void staffAccessUsesCurrentRoleAndNeverDummyOtp() throws Exception {
+        String owner=tokenFor("OWNER");
+        denied("GET","/api/v1/admin/products",owner,403);
+        denied("POST","/api/v1/auth/admin/otp/request",owner,400);
+        props.getOtp().setDevMode(false);
+        try {
+            denied("GET","/api/v1/admin/products",owner,403);
+            owner=tokenFor("OWNER");
+            request("GET","/api/v1/admin/products","",owner);
+            String manager=tokenFor("CATALOGUE_MANAGER");
+            request("GET","/api/v1/admin/products","",manager);
+            denied("GET","/api/v1/admin/staff",manager,403);
+            denied("GET","/api/v1/ops/settings",manager,403);
+            db.update("update users set role='CUSTOMER' where id=?",user);
+            denied("GET","/api/v1/admin/products",manager,403);
+            db.update("update users set role='OWNER' where id=?",user);
+            denied("GET","/api/v1/admin/products",manager,403);
+            db.update("update users set status='SUSPENDED' where id=?",user);
+            denied("GET","/api/v1/admin/products",owner,401);
+        } finally {props.getOtp().setDevMode(true);}
+    }
+
+    @Test void ownerAssignsStaffAndRevokesPreviouslyIssuedTokens() throws Exception {
+        props.getOtp().setDevMode(false);
+        try {
+            String owner=tokenFor("OWNER");
+            var staff=request("PUT","/api/v1/admin/staff","{\"mobile\":\"9000000033\",\"role\":\"CATALOGUE_MANAGER\"}",owner);
+            UUID id=UUID.fromString(staff.path("id").asText());
+            long version=db.queryForObject("select role_version from users where id=?",Long.class,id);
+            String token=jwt.issueAccessToken(id,"9000000033","CATALOGUE_MANAGER",version);
+            request("GET","/api/v1/admin/products","",token);
+            request("PUT","/api/v1/admin/staff","{\"mobile\":\"9000000033\",\"role\":\"CUSTOMER\"}",owner);
+            denied("GET","/api/v1/admin/products",token,401);
+            request("PUT","/api/v1/admin/staff","{\"mobile\":\"9000000033\",\"role\":\"CATALOGUE_MANAGER\"}",owner);
+            denied("GET","/api/v1/admin/products",token,401);
+        } finally {props.getOtp().setDevMode(true);}
+    }
+    @Test void adminProductDraftPublishArchiveAndPhotoFlow() throws Exception {
+        props.getOtp().setDevMode(false);
+        try {
+            String token=tokenFor("OWNER");
+            var category=request("POST","/api/v1/admin/categories",json.writeValueAsString(java.util.Map.of("name","Test vegetables","slug","test-"+UUID.randomUUID(),"sortOrder",2)),token);
+            var body=new java.util.HashMap<String,Object>();
+            body.put("sku","test-"+UUID.randomUUID());body.put("name","Test carrots");body.put("unit","500 g");body.put("categoryId",category.path("id").asText());
+            body.put("publicationStatus","DRAFT");body.put("available",true);
+            var draft=request("POST","/api/v1/admin/products",json.writeValueAsString(body),token);
+            String id=draft.path("id").asText();
+            denied("GET","/api/v1/products/"+id,token,404);
+            var image=new java.awt.image.BufferedImage(2,2,java.awt.image.BufferedImage.TYPE_INT_RGB);
+            var bytes=new java.io.ByteArrayOutputStream();javax.imageio.ImageIO.write(image,"png",bytes);
+            var uploaded=request("POST","/api/v1/admin/images",json.writeValueAsString(java.util.Map.of("base64",java.util.Base64.getEncoder().encodeToString(bytes.toByteArray()))),token);
+            http.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(uploaded.path("url").asText()))
+               .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk())
+               .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content().contentType("image/png"));
+            body.put("imageUrl",uploaded.path("url").asText());body.put("publicationStatus","PUBLISHED");body.put("initialPrice",39);body.put("version",draft.path("version").asLong());
+            var published=request("PUT","/api/v1/admin/products/"+id,json.writeValueAsString(body),token);
+            var visible=request("GET","/api/v1/products/"+id,"",token);
+            assertEquals(39,visible.path("sellingPrice").asInt());assertTrue(visible.path("inStock").asBoolean());
+            assertEquals(uploaded.path("url").asText(),visible.path("imageUrl").asText());
+            body.remove("initialPrice");body.put("version",published.path("version").asLong());body.put("available",false);
+            var unavailable=request("PUT","/api/v1/admin/products/"+id,json.writeValueAsString(body),token);
+            assertFalse(request("GET","/api/v1/products/"+id,"",token).path("inStock").asBoolean());
+            http.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/baskets/current/items").header("Authorization","Bearer "+token).contentType("application/json").content("{\"productId\":\""+id+"\",\"quantity\":1}"))
+               .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isBadRequest());
+            body.put("version",unavailable.path("version").asLong());body.put("publicationStatus","ARCHIVED");
+            request("PUT","/api/v1/admin/products/"+id,json.writeValueAsString(body),token);
+            denied("GET","/api/v1/products/"+id,token,404);
+            assertEquals(4,db.queryForObject("select count(*) from admin_audit where entity_id=?",Integer.class,UUID.fromString(id)));
+        } finally {props.getOtp().setDevMode(true);}
+    }
     UUID user, product;
     @BeforeEach void seed() {
         user = UUID.randomUUID();
@@ -78,7 +160,7 @@ class DatabaseCheckoutTest {
         product = db.queryForObject("select product_id from product_prices where active=true and effective_from <= now() and (effective_to is null or effective_to > now()) limit 1", UUID.class);
     }
     @Test void upgradesV20AndValidatesEntireHibernateSchema() {
-        assertEquals(22, db.queryForObject("select count(*) from flyway_schema_history where success=true and version is not null", Integer.class));
+        assertEquals(23, db.queryForObject("select count(*) from flyway_schema_history where success=true and version is not null", Integer.class));
         assertEquals(1, db.queryForObject("select count(*) from price_calendars where zone='HYD_PILOT'", Integer.class));
     }
     @Test void checkoutPersistsAndRetryReturnsSameOrder() {

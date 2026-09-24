@@ -18,4 +18,5 @@ public interface ProductPriceRepository extends JpaRepository<ProductPrice, UUID
             @Param("zone") String zone, @Param("at") Instant at);
 
     List<ProductPrice> findByProductIdInAndZoneAndActiveTrue(List<UUID> ids, String zone);
+    boolean existsByProductId(java.util.UUID productId);
 }

@@ -39,7 +39,10 @@ public class User extends BaseEntity {
     @Column(nullable = false)
     private Role role = Role.CUSTOMER;
 
+    @Column(name = "role_version", nullable = false)
+    private long roleVersion = 0;
+
     public enum Status { ACTIVE, SUSPENDED, DELETED }
     public enum ProfileCompletionStatus { NEW, ONBOARDING, COMPLETE }
-    public enum Role { CUSTOMER, ADMIN }
+    public enum Role { CUSTOMER, ADMIN, OWNER, CATALOGUE_MANAGER, ORDER_MANAGER, DELIVERY_STAFF }
 }

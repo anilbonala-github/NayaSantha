@@ -83,7 +83,7 @@ public class CheckoutService {
         for (BasketItem item : stored) {
             Product product = catalogue.get(item.getProductId());
             ProductPrice price = rates.get(item.getProductId());
-            if (product == null || !product.isActive() || price == null || item.getQuantity() < 1) {
+            if (product == null || !product.isActive() || !product.isAvailable() || price == null || item.getQuantity() < 1) {
                 throw ApiException.userError("An item is no longer available. Remove it from your basket before checkout.");
             }
             BigDecimal rate = price.getSellingPrice().setScale(2);

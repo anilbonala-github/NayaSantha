@@ -35,7 +35,7 @@ public class CatalogueService {
     }
 
     public PageDto<ProductDto> searchProducts(UUID categoryId, String query, int page, int size) {
-        PageRequest pageable = PageRequest.of(page, Math.min(size, 60));
+        PageRequest pageable = PageRequest.of(Math.max(0, page), Math.max(1, Math.min(size, 60)), org.springframework.data.domain.Sort.by("name").ascending().and(org.springframework.data.domain.Sort.by("id")));
         String q = (query == null || query.isBlank()) ? null : query.trim();
 
         Page<Product> result;
@@ -55,7 +55,7 @@ public class CatalogueService {
     }
 
     public ProductDto getProduct(UUID id) {
-        Product p = products.findById(id).orElseThrow(() -> ApiException.notFound("Product"));
+        Product p = products.findById(id).filter(Product::isActive).orElseThrow(() -> ApiException.notFound("Product"));
         ProductPrice price = prices.current(List.of(id)).get(id);
         return ProductDto.from(p, price);
     }

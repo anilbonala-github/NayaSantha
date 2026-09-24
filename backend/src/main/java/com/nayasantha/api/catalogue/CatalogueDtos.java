@@ -36,7 +36,7 @@ public final class CatalogueDtos {
                     p.getId(), p.getSku(), p.getName(), p.getCategoryId(), p.getUnit(), p.getDescription(),
                     p.getEmoji(), p.getImageUrl(), p.getOrigin(), p.getFarmer(),
                     p.getRating(), p.getRatingCount(), badgeList,
-                    price != null && p.isActive(),
+                    price != null && p.isActive() && p.isAvailable(),
                     price == null ? null : price.getMrp(),
                     price == null ? null : price.getSellingPrice(),
                     price == null ? null : price.getSellingPrice(),

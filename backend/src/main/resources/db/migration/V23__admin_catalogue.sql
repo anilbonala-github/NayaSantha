@@ -1,0 +1,18 @@
+ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
+ALTER TABLE users ALTER COLUMN role TYPE VARCHAR(32);
+ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('CUSTOMER','ADMIN','OWNER','CATALOGUE_MANAGER','ORDER_MANAGER','DELIVERY_STAFF'));
+ALTER TABLE products ADD COLUMN publication_status VARCHAR(16) NOT NULL DEFAULT 'PUBLISHED' CHECK (publication_status IN ('DRAFT','PUBLISHED','ARCHIVED'));
+UPDATE products SET publication_status='ARCHIVED' WHERE active=false;
+ALTER TABLE products ADD COLUMN available BOOLEAN NOT NULL DEFAULT true;
+CREATE TABLE catalogue_images (
+ id UUID PRIMARY KEY, content_type VARCHAR(32) NOT NULL, content BYTEA NOT NULL,
+ created_by UUID NOT NULL REFERENCES users(id), created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE admin_audit (
+ id UUID PRIMARY KEY DEFAULT gen_random_uuid(), actor_id UUID NOT NULL REFERENCES users(id),
+ action VARCHAR(64) NOT NULL, entity_id UUID NOT NULL, details TEXT NOT NULL,
+ created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE users ADD COLUMN role_version BIGINT NOT NULL DEFAULT 0;
+ALTER TABLE auth_sessions ADD COLUMN staff_verified BOOLEAN NOT NULL DEFAULT false;

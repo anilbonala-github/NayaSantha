@@ -27,7 +27,8 @@ class ApiClient {
   final TokenStore _tokens;
   bool _refreshing = false;
 
-  Future<void> _onRequest(RequestOptions options, RequestInterceptorHandler h) async {
+  Future<void> _onRequest(
+      RequestOptions options, RequestInterceptorHandler h) async {
     if (options.extra['auth'] != false) {
       final token = await _tokens.readAccess();
       if (token != null) options.headers['Authorization'] = 'Bearer $token';
@@ -76,8 +77,12 @@ class ApiClient {
       (await _dio.get(path, queryParameters: query)).data['data'];
 
   Future<dynamic> post(String path, {Object? body, bool auth = true}) async =>
-      (await _dio.post(path, data: body, options: Options(extra: {'auth': auth})))
+      (await _dio.post(path,
+              data: body, options: Options(extra: {'auth': auth})))
           .data['data'];
+
+  Future<dynamic> put(String path, {Object? body}) async =>
+      (await _dio.put(path, data: body)).data['data'];
 
   Future<dynamic> patch(String path, {Object? body}) async =>
       (await _dio.patch(path, data: body)).data['data'];

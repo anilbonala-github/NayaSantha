@@ -20,8 +20,13 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
 
-    public JwtAuthFilter(JwtService jwtService) {
+    private final com.nayasantha.api.user.UserRepository users;
+    private final com.nayasantha.api.config.AppProperties props;
+    public JwtAuthFilter(JwtService jwtService, com.nayasantha.api.user.UserRepository users,
+                         com.nayasantha.api.config.AppProperties props) {
         this.jwtService = jwtService;
+        this.users = users;
+        this.props = props;
     }
 
     @Override
@@ -32,8 +37,14 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 && SecurityContextHolder.getContext().getAuthentication() == null) {
             try {
                 JwtService.Principal p = jwtService.parse(header.substring(7));
+                var user = users.findById(p.userId()).orElseThrow();
+                if (user.getStatus() != com.nayasantha.api.user.User.Status.ACTIVE) throw new IllegalStateException();
+                // Do not elevate an old customer token after a role change; require fresh login.
+                String role = user.getRole().name();
+                if (p.roleVersion() != user.getRoleVersion()) throw new IllegalStateException();
+                if (props.getOtp().isDevMode() || !p.staffVerified() || !role.equals(p.role())) role = "CUSTOMER";
                 var auth = new UsernamePasswordAuthenticationToken(
-                        p.userId(), null, AuthorityUtils.createAuthorityList("ROLE_" + p.role()));
+                        p.userId(), null, AuthorityUtils.createAuthorityList("ROLE_" + role));
                 auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(auth);
             } catch (Exception ignored) {

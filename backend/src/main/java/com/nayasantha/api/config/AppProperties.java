@@ -6,6 +6,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "nayasantha")
 public class AppProperties {
 
+    private String ownerMobile = "";
+    public String getOwnerMobile() { return ownerMobile; }
+    public void setOwnerMobile(String value) { ownerMobile = value; }
     private Jwt jwt = new Jwt();
     private Otp otp = new Otp();
     private Gemini gemini = new Gemini();

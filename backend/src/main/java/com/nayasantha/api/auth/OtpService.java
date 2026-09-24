@@ -27,6 +27,7 @@ public class OtpService {
     @Transactional
     public AuthDtos.OtpRequestResult request(String mobile) {
         AppProperties.Otp cfg = props.getOtp();
+        if (!cfg.isDevMode()) throw ApiException.userError("SMS delivery is not configured yet. Please contact support.");
         String code = cfg.isDevMode() ? cfg.getDevCode() : generateCode(cfg.getLength());
 
         OtpChallenge challenge = new OtpChallenge();

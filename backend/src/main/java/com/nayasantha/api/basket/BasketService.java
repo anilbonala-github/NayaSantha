@@ -47,7 +47,7 @@ public class BasketService {
                 .orElseThrow(() -> ApiException.notFound("Product"));
         ProductPrice price = prices.requireCurrent(productId);
 
-        if (!product.isActive()) throw ApiException.userError("This item is no longer available.");
+        if (!product.isActive() || !product.isAvailable()) throw ApiException.userError("This item is no longer available.");
         BasketItem item = items.findByBasketIdAndProductId(basket.getId(), productId).orElse(null);
         if (item == null) {
             item = new BasketItem();

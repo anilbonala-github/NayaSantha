@@ -39,7 +39,10 @@ public class SecurityConfig {
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(PUBLIC).permitAll()
-                .requestMatchers("/api/v1/ops/**").hasRole("ADMIN")
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/catalogue-images/**").permitAll()
+                .requestMatchers("/api/v1/admin/staff/**").hasRole("OWNER")
+                .requestMatchers("/api/v1/admin/**", "/api/v1/ops/selling-prices/**").hasAnyRole("OWNER", "ADMIN", "CATALOGUE_MANAGER")
+                .requestMatchers("/api/v1/ops/**").hasAnyRole("OWNER", "ADMIN", "ORDER_MANAGER")
                 .anyRequest().authenticated())
             .exceptionHandling(e -> e
                 .authenticationEntryPoint((req, res, ex) -> {
