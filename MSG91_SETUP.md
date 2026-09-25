@@ -14,6 +14,8 @@
 MSG91_AUTH_KEY=<private server Auth Key>
 MSG91_WIDGET_ID=<web Widget ID>
 MSG91_WIDGET_TOKEN=<restricted client widget token, NOT Auth Key>
+MSG91_MOBILE_WIDGET_ID=<mobile Widget ID>
+MSG91_MOBILE_WIDGET_TOKEN=<restricted mobile widget token>
 MSG91_ENABLED=false
 OWNER_MOBILE=<designated owner's 10-digit mobile>
 ```
@@ -27,9 +29,11 @@ Do not put secrets in git. The widget token is intentionally public client confi
 3. Perform a supervised real-SMS pilot, setting MSG91_ENABLED=true and OTP_DEV_MODE=false only for the planned cutover. Verify CAPTCHA, successful OTP, incorrect/expired OTP, cancellation, resend and delivery errors; validate owner/customer separation and replay rejection.
 4. Confirm the Widget success callback supplies its JWT as a string or `message`. This also needs a live provider check.
 
-## Mobile limitation
+## Mobile integration
 
-This patch supports web only. When the real provider is enabled, this version of the mobile client reports that SMS sign-in requires the website. Older TestFlight builds use the legacy OTP endpoints and cannot sign in after dummy OTP is disabled. Do not perform a general production cutover until the mobile widget is integrated and the updated iOS build is available, or until the owner explicitly chooses a web-only pilot.
+The native client uses MSG91's official sendotp_flutter_sdk and the existing NayaSantha code-entry screen. The backend selects separate web/mobile widget configuration through the platform query parameter. Native requests retain the provider request ID, use its default resend channel, enforce a 30-second cooldown and at most two resends in the current flow, and exchange verified proofs through the same backend endpoint as web. Provider-side limits remain necessary because client-side limits alone cannot prevent abuse.
+
+Older TestFlight builds use the legacy OTP endpoints and cannot sign in after dummy OTP is disabled. Make the updated iOS build available before general activation. Real SMS delivery, the provider verification response, and on-device iOS behavior still need a live pilot; local tests use provider fixtures.
 
 ## Provider references
 

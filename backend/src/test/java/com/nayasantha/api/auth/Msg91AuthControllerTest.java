@@ -13,6 +13,17 @@ class Msg91AuthControllerTest {
     final JdbcTemplate db=mock(JdbcTemplate.class);
     final AppProperties props=new AppProperties();
     Msg91AuthController controller() { return new Msg91AuthController(provider,auth,db,props,true,"widget","public-token","private-key"); }
+    @Test void selectsSeparateMobileConfigurationAndRejectsInvalidPlatform() {
+        props.getOtp().setDevMode(false);
+        var controller=controller();
+        org.springframework.test.util.ReflectionTestUtils.setField(controller,"mobileWidgetId","mobile-widget");
+        org.springframework.test.util.ReflectionTestUtils.setField(controller,"mobileWidgetToken","mobile-token");
+        var json=new com.fasterxml.jackson.databind.ObjectMapper();
+        assertEquals("public-token",json.valueToTree(controller.config("web")).path("data").path("widgetToken").asText());
+        assertEquals("mobile-token",json.valueToTree(controller.config("mobile")).path("data").path("widgetToken").asText());
+        assertFalse(json.valueToTree(controller.config("mobile")).toString().contains("private-key"));
+        assertThrows(ApiException.class,()->controller.config("desktop"));
+    }
     @Test void refusesProofWhenDummyModeIsEnabled() {
         assertThrows(ApiException.class,()->controller().verify(new Msg91AuthController.Proof("proof","9121304215",true),new MockHttpServletRequest()));
         verifyNoInteractions(provider,auth,db);

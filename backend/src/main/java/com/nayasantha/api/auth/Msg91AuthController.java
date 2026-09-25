@@ -21,6 +21,8 @@ public class Msg91AuthController {
     private final boolean enabled;
     private final String widgetId, widgetToken;
     private final String authKey;
+    @Value("${MSG91_MOBILE_WIDGET_ID:}") private String mobileWidgetId = "";
+    @Value("${MSG91_MOBILE_WIDGET_TOKEN:}") private String mobileWidgetToken = "";
 
     public Msg91AuthController(Msg91Verifier verifier, AuthService auth, JdbcTemplate jdbc, AppProperties props,
             @Value("${MSG91_ENABLED:false}") boolean enabled,
@@ -33,11 +35,14 @@ public class Msg91AuthController {
     }
 
     @GetMapping("/config")
-    public ApiResponse<?> config() {
-        boolean ready=enabled && !props.getOtp().isDevMode() && !widgetId.isBlank()
-                && !widgetToken.isBlank() && !authKey.isBlank() && !widgetToken.equals(authKey);
+    public ApiResponse<?> config(@RequestParam(defaultValue="web") String platform) {
+        if (!platform.equals("web") && !platform.equals("mobile")) throw ApiException.userError("Unsupported login platform");
+        String id=platform.equals("mobile") ? mobileWidgetId : widgetId;
+        String token=platform.equals("mobile") ? mobileWidgetToken : widgetToken;
+        boolean ready=enabled && !props.getOtp().isDevMode() && !id.isBlank()
+                && !token.isBlank() && !authKey.isBlank() && !token.equals(authKey);
         // Only the restricted public widget token is exposed, never MSG91_AUTH_KEY.
-        return ApiResponse.of(ready ? Map.of("enabled",true,"widgetId",widgetId,"widgetToken",widgetToken)
+        return ApiResponse.of(ready ? Map.of("enabled",true,"widgetId",id,"widgetToken",token)
                 : Map.of("enabled",false));
     }
 

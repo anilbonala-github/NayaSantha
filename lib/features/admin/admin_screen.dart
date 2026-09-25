@@ -50,7 +50,6 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
       _error = null;
     });
     try {
-      final client = ref.read(apiClientProvider);
       if (!_sent) {
         final verified = await ref.read(authRepositoryProvider)
             .signInWithSms(_mobile.text, staff: true);
@@ -61,15 +60,10 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
           if (mounted) context.go('/admin');
           return;
         }
-        await client.post('/auth/admin/otp/request',
-            auth: false, body: {'mobile': _mobile.text});
+        await ref.read(authRepositoryProvider).requestOtp(_mobile.text, staff: true);
         if (mounted) setState(() => _sent = true);
       } else {
-        final data = await client.post('/auth/admin/otp/verify',
-            auth: false, body: {'mobile': _mobile.text, 'code': _otp.text});
-        await ref
-            .read(tokenStoreProvider)
-            .save(access: data['accessToken'], refresh: data['refreshToken']);
+        await ref.read(authRepositoryProvider).verifyOtp(_mobile.text, _otp.text, staff: true);
         ref.invalidate(basketProvider);
         ref.invalidate(categoriesProvider);
         ref.invalidate(productsProvider);

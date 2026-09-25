@@ -18,6 +18,7 @@ dependencies:
   intl: ^0.19.0
   # Dynamic backend client (Vol2 §2): REST via Dio, Riverpod state, secure tokens.
   dio: ^5.7.0
+  sendotp_flutter_sdk: ^0.0.2
   flutter_riverpod: ^2.6.1
   flutter_secure_storage: ^9.2.2
   # Native Razorpay Checkout for Android/iOS (web uses checkout.js). Mobile-only plugin.
