@@ -43,6 +43,7 @@ public class OtpService {
 
     @Transactional
     public void verify(String mobile, String code) {
+        if (!props.getOtp().isDevMode()) throw ApiException.userError("Use SMS verification to sign in. Please reload the login page.");
         OtpChallenge challenge = challenges.findFirstByMobileOrderByCreatedAtDesc(mobile)
                 .orElseThrow(() -> new ApiException(ErrorCode.OTP_INVALID, "No OTP requested for " + mobile));
 

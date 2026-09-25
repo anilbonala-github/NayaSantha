@@ -39,6 +39,16 @@ public class AuthService {
     public AuthDtos.TokenResponse verifyOtp(String mobile, String code, String userAgent) {
         otpService.verify(mobile, code);
 
+        return signIn(mobile, userAgent, !props.getOtp().isDevMode(), false);
+    }
+
+    @Transactional
+    public AuthDtos.TokenResponse signInVerifiedMobile(String mobile, boolean staff, String userAgent) {
+        return signIn(mobile, userAgent, true, staff);
+    }
+
+    private AuthDtos.TokenResponse signIn(String mobile, String userAgent, boolean verified, boolean staff) {
+
         User user = users.findByMobile(mobile).orElseGet(() -> {
             User u = new User();
             u.setMobile(mobile);
@@ -48,12 +58,13 @@ public class AuthService {
         user.setLastLoginAt(Instant.now());
         if (user.getStatus() != User.Status.ACTIVE) throw ApiException.forbidden("Account is not active");
         // Bootstrap only after real verification. Never overwrite a stored staff role on login.
-        if (!props.getOtp().isDevMode() && mobile.equals(props.getOwnerMobile())) {
+        if (verified && mobile.equals(props.getOwnerMobile())) {
             user.setRole(User.Role.OWNER);
         }
+        if (staff && user.getRole() == User.Role.CUSTOMER) throw ApiException.forbidden("This account does not have staff access");
         user = users.save(user);
 
-        return issueTokens(user, userAgent, !props.getOtp().isDevMode());
+        return issueTokens(user, userAgent, verified);
     }
 
     @Transactional

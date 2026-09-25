@@ -174,6 +174,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     ref.listen<AuthState>(authControllerProvider, (previous, next) {
       if (next is AuthOtpSent) {
         context.go(Routes.otp);
+      } else if (next is AuthAuthenticated) {
+        context.read<AppState>().applyBackendSignIn(
+          phone: next.user.mobile, name: next.user.name,
+          onboardingComplete: !next.user.needsOnboarding);
+        context.go(next.user.needsOnboarding ? Routes.register : Routes.home);
       } else if (next is AuthFailed) {
         setState(() => _error = next.failure.userMessage);
       }

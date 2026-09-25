@@ -160,7 +160,7 @@ class DatabaseCheckoutTest {
         product = db.queryForObject("select product_id from product_prices where active=true and effective_from <= now() and (effective_to is null or effective_to > now()) limit 1", UUID.class);
     }
     @Test void upgradesV20AndValidatesEntireHibernateSchema() {
-        assertEquals(23, db.queryForObject("select count(*) from flyway_schema_history where success=true and version is not null", Integer.class));
+        assertEquals(24, db.queryForObject("select count(*) from flyway_schema_history where success=true and version is not null", Integer.class));
         assertEquals(1, db.queryForObject("select count(*) from price_calendars where zone='HYD_PILOT'", Integer.class));
     }
     @Test void checkoutPersistsAndRetryReturnsSameOrder() {

@@ -52,6 +52,15 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
     try {
       final client = ref.read(apiClientProvider);
       if (!_sent) {
+        final verified = await ref.read(authRepositoryProvider)
+            .signInWithSms(_mobile.text, staff: true);
+        if (verified != null) {
+          ref.invalidate(basketProvider);
+          ref.invalidate(categoriesProvider);
+          ref.invalidate(productsProvider);
+          if (mounted) context.go('/admin');
+          return;
+        }
         await client.post('/auth/admin/otp/request',
             auth: false, body: {'mobile': _mobile.text});
         if (mounted) setState(() => _sent = true);

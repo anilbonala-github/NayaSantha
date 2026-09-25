@@ -56,6 +56,11 @@ class AuthController extends StateNotifier<AuthState> {
   Future<void> requestOtp(String mobile) async {
     state = const AuthLoading();
     try {
+      final verified = await _repo.signInWithSms(mobile);
+      if (verified != null) {
+        state = AuthAuthenticated(verified.user);
+        return;
+      }
       final hint = await _repo.requestOtp(mobile);
       state = AuthOtpSent(mobile, devHint: hint);
     } on ApiFailure catch (f) {
