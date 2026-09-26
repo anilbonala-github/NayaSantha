@@ -43,8 +43,21 @@ public class Msg91Verifier {
 
     static String verifiedMobile(JsonNode result) {
         if (result == null || !"success".equals(result.path("type").asText())) throw invalid();
-        String identifier = result.path("data").path("identifier").asText("");
-        if (!identifier.matches("\\+?91[6-9]\\d{9}")) throw invalid();
+        // Read identity only from MSG91's authenticated server response, never the client JWT.
+        String direct = identifier(result.path("identifier"));
+        String nested = identifier(result.path("data").path("identifier"));
+        if (direct != null && nested != null && !direct.equals(nested)) throw invalid();
+        String mobile = direct != null ? direct : nested;
+        if (mobile == null) throw new ApiException(ErrorCode.INTERNAL_ERROR,
+                "MSG91 success response did not contain a supported verified mobile identity",
+                "SMS verification completed, but we could not finish sign-in. Please contact support.");
+        return mobile;
+    }
+
+    private static String identifier(JsonNode value) {
+        if (value.isMissingNode() || value.isNull()) return null;
+        if (!value.isTextual() || !value.textValue().matches("\\+?91[6-9]\\d{9}")) throw invalid();
+        String identifier = value.textValue();
         return identifier.substring(identifier.length() - 10);
     }
 

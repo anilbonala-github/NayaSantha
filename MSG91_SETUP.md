@@ -25,7 +25,7 @@ Do not put secrets in git. The widget token is intentionally public client confi
 ## Activation checks still required
 
 1. Back up the database, deploy V24/backend, then deploy the matching web release with the feature disabled.
-2. Confirm the success response of MSG91 `verifyAccessToken` contains `type: success` and `data.identifier` with the verified +91/91 number. The parser deliberately fails closed for any other schema. Current tests use local fixtures, not evidence of MSG91's live response contract.
+2. Confirm the success response of MSG91 `verifyAccessToken` contains `type: success` and either `identifier` or `data.identifier` with the verified +91/91 number. Both locations must agree when present. The parser fails closed for missing, malformed or conflicting identities. Current tests use local fixtures, not evidence of MSG91's live response contract; a fresh real SMS login must confirm compatibility before the rollout is considered complete.
 3. Perform a supervised real-SMS pilot, setting MSG91_ENABLED=true and OTP_DEV_MODE=false only for the planned cutover. Verify CAPTCHA, successful OTP, incorrect/expired OTP, cancellation, resend and delivery errors; validate owner/customer separation and replay rejection.
 4. Confirm the Widget success callback supplies its JWT as a string or `message`. This also needs a live provider check.
 
