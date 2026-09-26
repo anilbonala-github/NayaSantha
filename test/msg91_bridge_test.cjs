@@ -30,3 +30,24 @@ test('prevents overlapping widget sessions',async()=>{
   options.failure();
   await assert.rejects(first);
 });
+
+test('custom UI sends and verifies the same request without a popup', async()=>{
+ const window = {};
+ let options, verifiedReq;
+ window.initSendOTP = config => {
+   options=config;
+   window.sendOtp=(mobile,ok)=> { assert.equal(mobile,'919121304215'); ok({type:'success',message:'request-1'}); };
+   window.verifyOtp=(code,ok,fail,req)=> { verifiedReq=req; assert.equal(code,'123456'); ok({type:'success',message:'header.payload.signature'}); };
+ };
+ vm.runInNewContext(source,{window,setTimeout,clearTimeout});
+ await window.nayaMsg91Prepare(JSON.stringify({widgetId:'widget',widgetToken:'public'}));
+ assert.equal(options.exposeMethods,true);
+ assert.equal(options.captchaRenderId,'naya-otp-captcha');
+ assert.equal(options.identifier,undefined); // No automatic send during setup.
+ await window.nayaMsg91Send('9121304215');
+ await assert.rejects(window.nayaMsg91Verify('9704214215','123456'));
+ await assert.rejects(window.nayaMsg91Send('9121304215')); // Cooldown.
+ assert.equal(await window.nayaMsg91Verify('9121304215','123456'),'header.payload.signature');
+ assert.equal(verifiedReq,'request-1');
+ await assert.rejects(window.nayaMsg91Verify('9121304215','123456')); // Single use.
+});

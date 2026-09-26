@@ -19,6 +19,7 @@ class AuthRepository {
   final TokenStore _tokens;
   final Msg91MobileOtp _mobileOtp = Msg91MobileOtp();
   bool _mobileSmsEnabled = false;
+  bool _webSmsEnabled = false;
 
   /// Returns null while the verified-provider rollout is disabled.
   Future<AuthSession?> signInWithSms(String mobile, {bool staff = false}) async {
@@ -26,13 +27,14 @@ class AuthRepository {
       final config = await _client.get('/auth/msg91/config', query: {'platform': kIsWeb ? 'web' : 'mobile'})
           as Map<String, dynamic>;
       _mobileSmsEnabled = !kIsWeb && config['enabled'] == true;
+      _webSmsEnabled = kIsWeb && config['enabled'] == true;
       if (config['enabled'] != true) return null;
       if (!kIsWeb) {
         _mobileOtp.configure(config);
         return null; // The native app uses its existing code-entry screen.
       }
-      final proof = await verifyWithMsg91(config, mobile);
-      return await _exchangeProof(mobile, proof, staff);
+      await prepareMsg91(config);
+      return null;
     } on DioException catch (e) {
       throw ApiFailure.fromDio(e);
     }
@@ -52,6 +54,7 @@ class AuthRepository {
   /// Requests an OTP. Returns a dev hint while the SMS provider is stubbed.
   Future<String?> requestOtp(String mobile, {bool staff = false}) async {
     try {
+      if (_webSmsEnabled) { await sendMsg91(mobile); return null; }
       if (_mobileSmsEnabled) { await _mobileOtp.send(mobile); return null; }
       final data = await _client.post(staff ? '/auth/admin/otp/request' : '/auth/otp/request',
           body: {'mobile': mobile}, auth: false);
@@ -63,6 +66,7 @@ class AuthRepository {
 
   Future<AuthSession> verifyOtp(String mobile, String code, {bool staff = false}) async {
     try {
+      if (_webSmsEnabled) return await _exchangeProof(mobile, await verifyMsg91(mobile, code), staff);
       if (_mobileSmsEnabled) return await _exchangeProof(mobile, await _mobileOtp.verify(mobile, code), staff);
       final data = await _client.post(staff ? '/auth/admin/otp/verify' : '/auth/otp/verify',
           body: {'mobile': mobile, 'code': code}, auth: false);

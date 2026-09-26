@@ -16,7 +16,7 @@ class Profile {
   final String profileCompletionStatus;
   final String role; // CUSTOMER | ADMIN
 
-  bool get isAdmin => role == 'ADMIN';
+  bool get isAdmin => const {'OWNER', 'ADMIN', 'CATALOGUE_MANAGER', 'ORDER_MANAGER'}.contains(role);
   String get displayName =>
       (name == null || name!.isEmpty) ? 'NayaSantha member' : name!;
   String get initial =>

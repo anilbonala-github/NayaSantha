@@ -15,7 +15,7 @@ class AuthUser {
   final String role; // CUSTOMER | ADMIN
 
   bool get needsOnboarding => profileCompletionStatus != 'COMPLETE';
-  bool get isAdmin => role == 'ADMIN';
+  bool get isAdmin => const {'OWNER', 'ADMIN', 'CATALOGUE_MANAGER', 'ORDER_MANAGER'}.contains(role);
 
   factory AuthUser.fromJson(Map<String, dynamic> j) => AuthUser(
         id: j['id'] as String,

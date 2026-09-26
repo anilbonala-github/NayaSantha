@@ -3,7 +3,7 @@
 ## Implemented
 
 - The backend exposes only the restricted widget token and Widget ID through `/api/v1/auth/msg91/config`; the private Auth Key stays server-side.
-- Customer and staff web login can launch MSG91's standard verification widget. Using the provider's widget in this first pilot retains its CAPTCHA and OTP resend controls. A custom OTP form is not implemented in this phase.
+- Customer and staff share `/login`; `/admin/login` redirects there. The number and SMS code stay on one screen on web and native. Web uses MSG91 exposed methods with an inline CAPTCHA container, while native uses its SDK. Verified backend roles determine the destination, including OWNER and ORDER_MANAGER.
 - `/api/v1/auth/msg91/verify` verifies the proof with MSG91 and compares the provider-verified Indian mobile number with the intended login number before issuing a session.
 - Migration V24 retains only SHA-256 proof hashes to prevent repeat session creation. Staff roles come from the database; the configured owner is bootstrapped only after real verification.
 - Legacy dummy-code verification fails when OTP_DEV_MODE is false, including challenges created before switching modes.
@@ -27,7 +27,7 @@ Do not put secrets in git. The widget token is intentionally public client confi
 1. Back up the database, deploy V24/backend, then deploy the matching web release with the feature disabled.
 2. Confirm the success response of MSG91 `verifyAccessToken` contains `type: success` and either `identifier` or `data.identifier` with the verified +91/91 number. Both locations must agree when present. The parser fails closed for missing, malformed or conflicting identities. Current tests use local fixtures, not evidence of MSG91's live response contract; a fresh real SMS login must confirm compatibility before the rollout is considered complete.
 3. Perform a supervised real-SMS pilot, setting MSG91_ENABLED=true and OTP_DEV_MODE=false only for the planned cutover. Verify CAPTCHA, successful OTP, incorrect/expired OTP, cancellation, resend and delivery errors; validate owner/customer separation and replay rejection.
-4. Confirm the Widget success callback supplies its JWT as a string or `message`. This also needs a live provider check.
+4. Confirm the custom verify callback supplies its JWT in `message` or `access-token`. Verify the inline CAPTCHA and SDK initialization on the live web build. Safe server diagnostics record response field names/types and rejection reasons only, never OTPs, tokens or mobile values.
 
 ## Mobile integration
 

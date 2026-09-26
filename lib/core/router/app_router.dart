@@ -48,8 +48,7 @@ GoRouter buildRouter() {
   return GoRouter(
     initialLocation: Routes.splash,
     routes: <RouteBase>[
-      GoRoute(
-          path: '/admin/login', builder: (_, __) => const AdminLoginScreen()),
+      GoRoute(path: '/admin/login', redirect: (_, __) => Routes.login),
       GoRoute(path: '/admin', builder: (_, __) => const CatalogueAdminScreen()),
       GoRoute(
         path: Routes.splash,
@@ -60,7 +59,7 @@ GoRouter buildRouter() {
         builder: (_, __) => const WelcomeScreen(),
       ),
       GoRoute(path: Routes.login, builder: (_, __) => const LoginScreen()),
-      GoRoute(path: Routes.otp, builder: (_, __) => const OtpScreen()),
+      GoRoute(path: Routes.otp, redirect: (_, __) => Routes.login),
       GoRoute(
         path: Routes.register,
         builder: (_, __) => const RegisterScreen(),

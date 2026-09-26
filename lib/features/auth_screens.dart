@@ -13,6 +13,7 @@ import '../core/widgets/common.dart';
 import '../core/api/api_failure.dart';
 import '../state/app_state.dart';
 import 'auth/presentation/auth_controller.dart';
+import 'auth/data/msg91_login.dart';
 import 'profile/presentation/profile_providers.dart';
 
 /// 01 — Splash. Brand moment plus session restore.
@@ -149,15 +150,32 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final TextEditingController _phone = TextEditingController();
+  final _code = TextEditingController();
+  bool _sent = false;
+  int _seconds = 0;
+  Timer? _resendTimer;
   String? _error;
 
   @override
   void dispose() {
+    resetMsg91();
+    _resendTimer?.cancel();
+    _code.dispose();
     _phone.dispose();
     super.dispose();
   }
 
   void _submit() {
+    if (ref.read(authControllerProvider) is AuthLoading) return;
+    if (_sent) {
+      if (!RegExp(r'^\d{6}$').hasMatch(_code.text.trim())) {
+        setState(() => _error = 'Enter the 6-digit SMS code.');
+        return;
+      }
+      setState(() => _error = null);
+      ref.read(authControllerProvider.notifier).verifyOtp(_phone.text.trim(), _code.text.trim());
+      return;
+    }
     final String value = _phone.text.trim();
     if (!RegExp(r'^[6-9]\d{9}$').hasMatch(value)) {
       setState(() => _error = 'Enter a 10-digit Indian mobile number');
@@ -173,12 +191,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     // React to the auth state machine (Vol2 §9): navigate on OTP sent, surface errors.
     ref.listen<AuthState>(authControllerProvider, (previous, next) {
       if (next is AuthOtpSent) {
-        context.go(Routes.otp);
+        setState(() { _sent = true; _seconds = 30; _error = null; });
+        _resendTimer?.cancel();
+        _resendTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+          if (!mounted) { timer.cancel(); return; }
+          setState(() => _seconds--);
+          if (_seconds <= 0) timer.cancel();
+        });
       } else if (next is AuthAuthenticated) {
         context.read<AppState>().applyBackendSignIn(
           phone: next.user.mobile, name: next.user.name,
           onboardingComplete: !next.user.needsOnboarding);
-        context.go(next.user.needsOnboarding ? Routes.register : Routes.home);
+        context.go(next.user.role == 'ORDER_MANAGER' ? Routes.ops : next.user.isAdmin ? '/admin' : next.user.needsOnboarding ? Routes.register : Routes.home);
       } else if (next is AuthFailed) {
         setState(() => _error = next.failure.userMessage);
       }
@@ -186,7 +210,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final bool _busy = ref.watch(authControllerProvider) is AuthLoading;
     return Scaffold(
       appBar: AppBar(leading: const _BackButton()),
-      body: PageBody(
+      body: SingleChildScrollView(child: PageBody(
         maxWidth: 440,
         padding: const EdgeInsets.all(Gap.xl),
         child: Column(
@@ -202,6 +226,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             const SizedBox(height: Gap.xl),
             TextField(
               controller: _phone,
+              enabled: !_sent && !_busy,
               keyboardType: TextInputType.phone,
               maxLength: 10,
               inputFormatters: <TextInputFormatter>[
@@ -211,11 +236,32 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 labelText: 'Mobile number',
                 prefixText: '+91  ',
                 counterText: '',
-                errorText: _error,
+
               ),
               onSubmitted: (_) => _submit(),
             ),
             const SizedBox(height: Gap.xl),
+            msg91Captcha(),
+            if (_sent) ...[
+              TextField(
+                controller: _code,
+                enabled: !_busy,
+                keyboardType: TextInputType.number,
+                autofillHints: const [AutofillHints.oneTimeCode],
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(6)],
+                decoration: const InputDecoration(labelText: 'SMS verification code'),
+                onSubmitted: (_) => _submit(),
+              ),
+              TextButton(onPressed: _busy || _seconds > 0 ? null : () {
+                _code.clear();
+                ref.read(authControllerProvider.notifier).requestOtp(_phone.text.trim());
+              }, child: Text(_seconds > 0 ? 'Resend in ${_seconds}s' : 'Resend code')),
+              TextButton(onPressed: _busy ? null : () => setState(() {
+                _sent = false; _code.clear(); _error = null;
+              }), child: const Text('Change mobile number')),
+            ],
+            if (_error != null) Padding(padding: const EdgeInsets.only(bottom: 16),
+              child: Text(_error!, style: const TextStyle(color: Colors.red))),
             FilledButton(
               onPressed: _busy ? null : _submit,
               child: _busy
@@ -225,7 +271,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: Colors.white),
                     )
-                  : const Text('Send code'),
+                  : Text(_sent ? 'Verify and sign in' : 'Send code'),
             ),
             const SizedBox(height: Gap.xl),
             const Text(
@@ -236,7 +282,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ),
           ],
         ),
-      ),
+      )),
     );
   }
 }
@@ -307,7 +353,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
               name: next.user.name,
               onboardingComplete: !next.user.needsOnboarding,
             );
-        context.go(next.user.needsOnboarding ? Routes.register : Routes.home);
+        context.go(next.user.role == 'ORDER_MANAGER' ? Routes.ops : next.user.isAdmin ? '/admin' : next.user.needsOnboarding ? Routes.register : Routes.home);
       } else if (next is AuthFailed) {
         setState(() => _error = next.failure.userMessage);
       } else if (next is AuthOtpSent) {

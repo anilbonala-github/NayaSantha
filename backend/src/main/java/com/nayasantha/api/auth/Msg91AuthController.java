@@ -54,9 +54,9 @@ public class Msg91AuthController {
     public ApiResponse<AuthDtos.TokenResponse> verify(@Valid @RequestBody Proof proof, HttpServletRequest request) {
         if (!enabled || props.getOtp().isDevMode()) throw ApiException.userError("SMS sign-in is not enabled yet.");
         String mobile=verifier.verify(proof.accessToken());
-        if (!mobile.equals(proof.mobile())) throw new ApiException(ErrorCode.OTP_INVALID,"Verified mobile does not match login");
+        if (!mobile.equals(proof.mobile())) throw new ApiException(ErrorCode.OTP_INVALID,"Verified mobile does not match login", "The verified mobile does not match this login. Start again with your number.");
         int inserted=jdbc.update("insert into used_login_proofs (token_hash) values (?) on conflict do nothing",Hashing.sha256(proof.accessToken()));
-        if (inserted!=1) throw new ApiException(ErrorCode.OTP_INVALID,"Verification proof already used");
+        if (inserted!=1) throw new ApiException(ErrorCode.OTP_INVALID,"Verification proof already used", "This verification has already been used. Request a new code.");
         return ApiResponse.of(auth.signInVerifiedMobile(mobile,proof.staff(),request.getHeader("User-Agent")));
     }
 }

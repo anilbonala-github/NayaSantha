@@ -83,17 +83,17 @@ class ProfileScreen extends ConsumerWidget {
                 NsCard(
                   color: AppColors.forestDark,
                   borderColor: AppColors.forestDark,
-                  onTap: () => context.push(Routes.ops),
+                  onTap: () => context.push(profile.role == 'ORDER_MANAGER' ? Routes.ops : '/admin'),
                   child: const Row(children: <Widget>[
                     Icon(Icons.storefront_outlined, color: AppColors.textOnDark),
                     SizedBox(width: Gap.md),
                     Expanded(
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: <Widget>[
-                        Text('Ops portal',
+                        Text('Store management',
                             style: TextStyle(
                                 color: AppColors.textOnDark, fontWeight: FontWeight.w800, fontSize: 16)),
                         SizedBox(height: 2),
-                        Text('Sunday procurement & price capture',
+                        Text('Open your staff workspace',
                             style: TextStyle(color: AppColors.textOnDark, fontSize: 12)),
                       ]),
                     ),
